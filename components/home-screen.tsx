@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { Battery, Signal, AlertTriangle, Share2, MapPin, Maximize2, Copy } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
@@ -23,21 +23,65 @@ export function HomeScreen() {
   const [showShareDialog, setShowShareDialog] = useState(false)
   const { toast } = useToast()
 
-  // Add this mock current location data
-  const currentLocation = {
-    latitude: 40.7128,
-    longitude: -74.006,
-    accuracy: 15, // in meters
-    address: "New York, NY, USA",
-    updatedAt: new Date(),
+  const [formattedTime, setFormattedTime] = useState("")
+  const [relativeTime, setRelativeTime] = useState("")
+
+  type LocationData = {
+    latitude: number
+    longitude: number
+    accuracy: number
+    address?: string
+    updatedAt: Date
   }
 
-  // Mock data
-  const lastUpdate = new Date()
+  const [currentLocation, setCurrentLocation] = useState<LocationData | null>(null)
+
+
   const batteryLevel = 78
-  const signalStrength = 4 // Out of 5
+  const signalStrength = 4
+
+  useEffect(() => {
+    if (!navigator.geolocation) {
+      console.error("Geolocation is not supported by your browser.")
+      return
+    }
+
+    const updateLocation = () => {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const { latitude, longitude, accuracy } = position.coords
+          setCurrentLocation({
+            latitude,
+            longitude,
+            accuracy,
+            updatedAt: new Date(),
+          })
+        },
+        (error) => {
+          console.error("Error getting geolocation:", error)
+        },
+        { enableHighAccuracy: true }
+      )
+    }
+
+    updateLocation()
+    const intervalId = setInterval(updateLocation, 30000)
+
+    return () => clearInterval(intervalId)
+  }, [])
+
+
+  useEffect(() => {
+    if (currentLocation?.updatedAt) {
+      setFormattedTime(currentLocation.updatedAt.toLocaleTimeString())
+      setRelativeTime(formatTimeAgo(currentLocation.updatedAt))
+    }
+  }, [currentLocation])
+
+
 
   const copyCoordinates = () => {
+    if (!currentLocation) return
     const coordText = `${currentLocation.latitude.toFixed(6)}, ${currentLocation.longitude.toFixed(6)}`
     navigator.clipboard.writeText(coordText).then(
       () => {
@@ -46,16 +90,18 @@ export function HomeScreen() {
           description: "Location coordinates copied to clipboard",
         })
       },
-      (err) => {
+      () => {
         toast({
           title: "Failed to copy",
           description: "Could not copy coordinates to clipboard",
           variant: "destructive",
         })
-      },
+      }
     )
   }
-
+  if (!currentLocation) {
+    return <div className="p-4 text-center text-gray-500">Fetching current location...</div>
+  }
   return (
     <div className="flex flex-col h-full">
       <header className="bg-blue-600 text-white p-4 shadow-md">
@@ -83,14 +129,12 @@ export function HomeScreen() {
               </div>
               <h2 className="text-xl font-semibold text-center">Current Location</h2>
               <p className="text-gray-500 text-center">
-                Last updated: {currentLocation.updatedAt.toLocaleTimeString()} (
-                {formatTimeAgo(currentLocation.updatedAt)})
+                Last updated: {formattedTime} ({relativeTime})
               </p>
             </div>
 
-            {/* Map View */}
             <div className="relative w-full h-48 mb-4 rounded-lg overflow-hidden shadow-sm border border-gray-200">
-              <MapView latitude={currentLocation.latitude} longitude={currentLocation.longitude} />
+              {currentLocation && <MapView latitude={currentLocation.latitude} longitude={currentLocation.longitude} />}
               <Dialog>
                 <DialogTrigger asChild>
                   <Button variant="outline" size="icon" className="absolute top-2 left-2 bg-white shadow-md z-10">
@@ -103,48 +147,45 @@ export function HomeScreen() {
                   </DialogHeader>
                   <div className="flex-1 h-full p-4 pt-0">
                     <div className="w-full h-full">
-                      <MapView
-                        latitude={currentLocation.latitude}
-                        longitude={currentLocation.longitude}
-                        zoom={15}
-                        interactive={true}
-                      />
+                      {currentLocation && <MapView latitude={currentLocation.latitude} longitude={currentLocation.longitude} zoom={15} interactive={true} />}
                     </div>
                   </div>
                 </DialogContent>
               </Dialog>
             </div>
 
-            <div className="bg-blue-50 rounded-lg p-4 mb-4">
-              <div className="grid grid-cols-2 gap-3 text-sm">
-                <div>
-                  <p className="text-gray-500 font-medium">Latitude</p>
-                  <div className="flex items-center">
-                    <p className="font-mono">{currentLocation.latitude.toFixed(6)}°</p>
-                  </div>
-                </div>
-                <div>
-                  <p className="text-gray-500 font-medium">Longitude</p>
-                  <div className="flex items-center">
-                    <p className="font-mono">{currentLocation.longitude.toFixed(6)}°</p>
-                  </div>
-                </div>
-                <div className="col-span-2 flex justify-between items-center">
-                  <Button variant="outline" size="sm" className="text-xs mt-1" onClick={copyCoordinates}>
-                    <Copy className="h-3 w-3 mr-1" />
-                    Copy Coordinates
-                  </Button>
+            {currentLocation && (
+              <div className="bg-blue-50 rounded-lg p-4 mb-4">
+                <div className="grid grid-cols-2 gap-3 text-sm">
                   <div>
-                    <p className="text-gray-500 text-xs">Accuracy</p>
-                    <p className="text-xs">±{currentLocation.accuracy} meters</p>
+                    <p className="text-gray-500 font-medium">Latitude</p>
+                    <div className="flex items-center">
+                      <p className="font-mono">{currentLocation.latitude.toFixed(6)}°</p>
+                    </div>
                   </div>
-                </div>
-                <div className="col-span-2">
-                  <p className="text-gray-500 font-medium">Address</p>
-                  <p>{currentLocation.address}</p>
+                  <div>
+                    <p className="text-gray-500 font-medium">Longitude</p>
+                    <div className="flex items-center">
+                      <p className="font-mono">{currentLocation.longitude.toFixed(6)}°</p>
+                    </div>
+                  </div>
+                  <div className="col-span-2 flex justify-between items-center">
+                    <Button variant="outline" size="sm" className="text-xs mt-1" onClick={copyCoordinates}>
+                      <Copy className="h-3 w-3 mr-1" />
+                      Copy Coordinates
+                    </Button>
+                    <div>
+                      <p className="text-gray-500 text-xs">Accuracy</p>
+                      <p className="text-xs">±{currentLocation.accuracy} meters</p>
+                    </div>
+                  </div>
+                  <div className="col-span-2">
+                    <p className="text-gray-500 font-medium">Address</p>
+                    <p>{currentLocation.address}</p>
+                  </div>
                 </div>
               </div>
-            </div>
+            )}
 
             <div className="w-full bg-gray-200 rounded-full h-2.5 mb-2">
               <div className="bg-blue-600 h-2.5 rounded-full" style={{ width: "100%" }}></div>
@@ -154,28 +195,18 @@ export function HomeScreen() {
         </Card>
 
         <div className="grid grid-cols-1 gap-4">
-          <Button
-            size="lg"
-            className="bg-red-600 hover:bg-red-700 text-white h-16 rounded-xl shadow-md"
-            onClick={() => setShowEmergencyAlert(true)}
-          >
+          <Button size="lg" className="bg-red-600 hover:bg-red-700 text-white h-16 rounded-xl shadow-md" onClick={() => setShowEmergencyAlert(true)}>
             <AlertTriangle className="mr-2 h-5 w-5" />
             Trigger Emergency Alert
           </Button>
 
-          <Button
-            size="lg"
-            variant="outline"
-            className="border-blue-300 text-blue-700 h-16 rounded-xl shadow-sm"
-            onClick={() => setShowShareDialog(true)}
-          >
+          <Button size="lg" variant="outline" className="border-blue-300 text-blue-700 h-16 rounded-xl shadow-sm" onClick={() => setShowShareDialog(true)}>
             <Share2 className="mr-2 h-5 w-5" />
             Share Location History
           </Button>
         </div>
       </main>
 
-      {/* Emergency Alert Dialog */}
       <AlertDialog open={showEmergencyAlert} onOpenChange={setShowEmergencyAlert}>
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -191,7 +222,6 @@ export function HomeScreen() {
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* Share Location Dialog */}
       <AlertDialog open={showShareDialog} onOpenChange={setShowShareDialog}>
         <AlertDialogContent>
           <AlertDialogHeader>
