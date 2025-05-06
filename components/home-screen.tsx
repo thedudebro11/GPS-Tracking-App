@@ -56,6 +56,26 @@ export function HomeScreen() {
             accuracy,
             updatedAt: new Date(),
           })
+          // 🚀 Send location to backend
+          fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/locations`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              latitude,
+              longitude,
+              accuracy,
+            }),
+          })
+            .then((res) => {
+              if (!res.ok) throw new Error("Failed to save location")
+              console.log("📍 Location saved to backend")
+            })
+            .catch((err) => {
+              console.error("❌ Error saving location:", err)
+            })
+
         },
         (error) => {
           console.error("Error getting geolocation:", error)
@@ -64,11 +84,14 @@ export function HomeScreen() {
       )
     }
 
+
     updateLocation()
     const intervalId = setInterval(updateLocation, 30000)
 
     return () => clearInterval(intervalId)
   }, [])
+
+
 
 
   useEffect(() => {
