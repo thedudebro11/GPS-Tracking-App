@@ -125,6 +125,42 @@ export function HomeScreen() {
   if (!currentLocation) {
     return <div className="p-4 text-center text-gray-500">Fetching current location...</div>
   }
+  const sendEmergencyAlert = async () => {
+    if (!currentLocation) return
+
+    try {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/alert`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          latitude: currentLocation.latitude,
+          longitude: currentLocation.longitude,
+          accuracy: currentLocation.accuracy,
+          user_id: "guest", // Optional
+          message: "User triggered emergency alert!",
+        }),
+      })
+
+      const data = await res.json()
+
+      toast({
+        title: "🚨 Emergency Sent",
+        description: `Server: ${data.status}`,
+      })
+    } catch (err) {
+      console.error("Emergency alert failed:", err)
+      toast({
+        title: "Error",
+        description: "Failed to send emergency alert.",
+        variant: "destructive",
+      })
+    } finally {
+      setShowEmergencyAlert(false)
+    }
+  }
+
   return (
     <div className="flex flex-col h-full">
       <header className="bg-blue-600 text-white p-4 shadow-md">
@@ -240,7 +276,13 @@ export function HomeScreen() {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction className="bg-red-600 hover:bg-red-700">Send Emergency Alert</AlertDialogAction>
+            <AlertDialogAction
+              className="bg-red-600 hover:bg-red-700"
+              onClick={sendEmergencyAlert}
+            >
+              Send Emergency Alert
+            </AlertDialogAction>
+
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
