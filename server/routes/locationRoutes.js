@@ -31,7 +31,11 @@ router.post('/', async (req, res) => {
 // GET /api/locations - Retrieve all locations (for testing or history screen)
 router.get('/', async (req, res) => {
   try {
-    const result = await pool.query('SELECT * FROM locations ORDER BY created_at DESC');
+    const result = await pool.query(`
+  SELECT id, latitude, longitude, accuracy, address, created_at
+  FROM locations
+  ORDER BY created_at DESC
+`);
     res.json({ success: true, locations: result.rows })
   } catch (error) {
     console.error('Error retrieving locations:', error)
