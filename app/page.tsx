@@ -6,7 +6,9 @@ import { HomeScreen } from "@/components/home-screen"
 import { ContactsScreen } from "@/components/contacts-screen"
 import { SettingsScreen } from "@/components/settings-screen"
 import { HistoryScreen } from "@/components/history-screen"
-import { Home, Users, Settings, Clock } from "lucide-react"
+import { Home, Users, Settings, Clock, AlertTriangle } from "lucide-react"
+import { EmergencyScreen } from "@/components/emergency-screen"
+
 
 export default function SafeStepsApp() {
   const [activeTab, setActiveTab] = useState("home")
@@ -27,6 +29,10 @@ export default function SafeStepsApp() {
           <TabsContent value="history" className="flex-1 p-0 m-0">
             <HistoryScreen />
           </TabsContent>
+          <TabsContent value="alerts" className="flex-1 p-0 m-0">
+            <EmergencyScreen />
+          </TabsContent>
+
 
           <div className="fixed bottom-0 left-0 right-0 border-t bg-white">
             <TabsList className="w-full h-16 grid grid-cols-4 bg-transparent">
@@ -58,6 +64,14 @@ export default function SafeStepsApp() {
                 <Settings className="h-5 w-5" />
                 <span className="text-xs mt-1">Settings</span>
               </TabsTrigger>
+              <TabsTrigger
+                value="alerts"
+                className="flex flex-col items-center justify-center data-[state=active]:bg-red-50 rounded-none"
+              >
+                <AlertTriangle className="h-5 w-5" />
+                <span className="text-xs mt-1">Alerts</span>
+              </TabsTrigger>
+
             </TabsList>
           </div>
         </Tabs>
