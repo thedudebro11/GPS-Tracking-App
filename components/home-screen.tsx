@@ -1,7 +1,15 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { Battery, Signal, AlertTriangle, Share2, MapPin, Maximize2, Copy } from "lucide-react"
+import {
+  Battery,
+  Signal,
+  AlertTriangle,
+  Share2,
+  MapPin,
+  Maximize2,
+  Copy,
+} from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import {
@@ -15,14 +23,24 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import { MapView } from "./map-view"
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog"
 import { useToast } from "@/hooks/use-toast"
+import { Switch } from "@/components/ui/switch"
+import { Label } from "@/components/ui/label"
 
 export function HomeScreen() {
   const [showEmergencyAlert, setShowEmergencyAlert] = useState(false)
   const [showShareDialog, setShowShareDialog] = useState(false)
-  const { toast } = useToast()
+  const [emergencyMode, setEmergencyMode] = useState(false)
+  const [pingInterval, setPingInterval] = useState(30000)
 
+  const { toast } = useToast()
   const [formattedTime, setFormattedTime] = useState("")
   const [relativeTime, setRelativeTime] = useState("")
 
@@ -35,63 +53,65 @@ export function HomeScreen() {
   }
 
   const [currentLocation, setCurrentLocation] = useState<LocationData | null>(null)
-
-
   const batteryLevel = 78
   const signalStrength = 4
 
   useEffect(() => {
-    if (!navigator.geolocation) {
-      console.error("Geolocation is not supported by your browser.")
-      return
-    }
+    if (!navigator.geolocation) return
 
     const updateLocation = () => {
       navigator.geolocation.getCurrentPosition(
         (position) => {
           const { latitude, longitude, accuracy } = position.coords
-          setCurrentLocation({
-            latitude,
-            longitude,
-            accuracy,
-            updatedAt: new Date(),
-          })
-          // 🚀 Send location to backend
+          setCurrentLocation({ latitude, longitude, accuracy, updatedAt: new Date() })
+
           fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/locations`, {
             method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              latitude,
-              longitude,
-              accuracy,
-            }),
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ latitude, longitude, accuracy }),
           })
-            .then((res) => {
-              if (!res.ok) throw new Error("Failed to save location")
-              console.log("📍 Location saved to backend")
-            })
-            .catch((err) => {
-              console.error("❌ Error saving location:", err)
-            })
-
         },
-        (error) => {
-          console.error("Error getting geolocation:", error)
-        },
+        (error) => console.error("Geolocation error:", error),
         { enableHighAccuracy: true }
       )
     }
 
-
     updateLocation()
     const intervalId = setInterval(updateLocation, 30000)
-
     return () => clearInterval(intervalId)
   }, [])
 
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (!emergencyMode || !currentLocation) return
 
+      const sendAlert = async () => {
+        try {
+          const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/alert`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              latitude: currentLocation.latitude,
+              longitude: currentLocation.longitude,
+              accuracy: currentLocation.accuracy,
+              user_id: "guest",
+              message: "User triggered emergency alert!",
+              is_emergency: true,
+            }),
+          })
+
+          const data = await res.json()
+          console.log("✅ Emergency alert sent:", data)
+        } catch (error) {
+          console.error("❌ Failed to send emergency alert:", error)
+        }
+      }
+
+      sendAlert() // ✅ Call the async function inside the interval
+    }, pingInterval)
+
+    return () => clearInterval(interval)
+  }, [emergencyMode, currentLocation, pingInterval])
 
 
   useEffect(() => {
@@ -101,65 +121,57 @@ export function HomeScreen() {
     }
   }, [currentLocation])
 
-
-
   const copyCoordinates = () => {
     if (!currentLocation) return
     const coordText = `${currentLocation.latitude.toFixed(6)}, ${currentLocation.longitude.toFixed(6)}`
     navigator.clipboard.writeText(coordText).then(
-      () => {
-        toast({
-          title: "Coordinates copied",
-          description: "Location coordinates copied to clipboard",
-        })
-      },
-      () => {
-        toast({
-          title: "Failed to copy",
-          description: "Could not copy coordinates to clipboard",
-          variant: "destructive",
-        })
-      }
+      () => toast({ title: "Coordinates copied" }),
+      () => toast({ title: "Failed to copy", variant: "destructive" })
     )
   }
+
+  const sendEmergencyAlert = async () => {
+  if (!currentLocation) return
+
+  try {
+    const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/alert`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        latitude: currentLocation.latitude,
+        longitude: currentLocation.longitude,
+        accuracy: currentLocation.accuracy,
+        user_id: "guest",
+        message: "User triggered emergency alert!",
+        is_emergency: true,
+      }),
+    })
+
+    if (!response.ok) {
+      throw new Error(`Server returned ${response.status}`)
+    }
+
+    const data = await response.json()
+
+    toast({
+      title: "🚨 Emergency Sent",
+      description: data.status || "Alert was successfully stored.",
+    })
+  } catch (err: any) {
+    console.error("❌ Emergency alert failed:", err)
+    toast({
+      title: "Error",
+      description: "Failed to send emergency alert.",
+      variant: "destructive",
+    })
+  } finally {
+    setShowEmergencyAlert(false)
+  }
+}
+
+
   if (!currentLocation) {
     return <div className="p-4 text-center text-gray-500">Fetching current location...</div>
-  }
-  const sendEmergencyAlert = async () => {
-    if (!currentLocation) return
-
-    try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/alert`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          latitude: currentLocation.latitude,
-          longitude: currentLocation.longitude,
-          accuracy: currentLocation.accuracy,
-          user_id: "guest", // Optional
-          message: "User triggered emergency alert!",
-          is_emergency: true,
-        }),
-      })
-
-      const data = await res.json()
-
-      toast({
-        title: "🚨 Emergency Sent",
-        description: `Server: ${data.status}`,
-      })
-    } catch (err) {
-      console.error("Emergency alert failed:", err)
-      toast({
-        title: "Error",
-        description: "Failed to send emergency alert.",
-        variant: "destructive",
-      })
-    } finally {
-      setShowEmergencyAlert(false)
-    }
   }
 
   return (
@@ -207,50 +219,55 @@ export function HomeScreen() {
                   </DialogHeader>
                   <div className="flex-1 h-full p-4 pt-0">
                     <div className="w-full h-full">
-                      {currentLocation && <MapView latitude={currentLocation.latitude} longitude={currentLocation.longitude} zoom={15} interactive={true} />}
+                      <MapView latitude={currentLocation.latitude} longitude={currentLocation.longitude} zoom={15} interactive={true} />
                     </div>
                   </div>
                 </DialogContent>
               </Dialog>
             </div>
 
-            {currentLocation && (
-              <div className="bg-blue-50 rounded-lg p-4 mb-4">
-                <div className="grid grid-cols-2 gap-3 text-sm">
+            <div className="bg-blue-50 rounded-lg p-4 mb-4">
+              <div className="grid grid-cols-2 gap-3 text-sm">
+                <div>
+                  <p className="text-gray-500 font-medium">Latitude</p>
+                  <p className="font-mono">{currentLocation.latitude.toFixed(6)}°</p>
+                </div>
+                <div>
+                  <p className="text-gray-500 font-medium">Longitude</p>
+                  <p className="font-mono">{currentLocation.longitude.toFixed(6)}°</p>
+                </div>
+                <div className="col-span-2 flex justify-between items-center">
+                  <Button variant="outline" size="sm" className="text-xs mt-1" onClick={copyCoordinates}>
+                    <Copy className="h-3 w-3 mr-1" /> Copy Coordinates
+                  </Button>
                   <div>
-                    <p className="text-gray-500 font-medium">Latitude</p>
-                    <div className="flex items-center">
-                      <p className="font-mono">{currentLocation.latitude.toFixed(6)}°</p>
-                    </div>
-                  </div>
-                  <div>
-                    <p className="text-gray-500 font-medium">Longitude</p>
-                    <div className="flex items-center">
-                      <p className="font-mono">{currentLocation.longitude.toFixed(6)}°</p>
-                    </div>
-                  </div>
-                  <div className="col-span-2 flex justify-between items-center">
-                    <Button variant="outline" size="sm" className="text-xs mt-1" onClick={copyCoordinates}>
-                      <Copy className="h-3 w-3 mr-1" />
-                      Copy Coordinates
-                    </Button>
-                    <div>
-                      <p className="text-gray-500 text-xs">Accuracy</p>
-                      <p className="text-xs">±{currentLocation.accuracy} meters</p>
-                    </div>
-                  </div>
-                  <div className="col-span-2">
-                    <p className="text-gray-500 font-medium">Address</p>
-                    <p>{currentLocation.address}</p>
+                    <p className="text-gray-500 text-xs">Accuracy</p>
+                    <p className="text-xs">±{currentLocation.accuracy} meters</p>
                   </div>
                 </div>
               </div>
-            )}
+            </div>
 
             <div className="w-full bg-gray-200 rounded-full h-2.5 mb-2">
               <div className="bg-blue-600 h-2.5 rounded-full" style={{ width: "100%" }}></div>
             </div>
-            <p className="text-sm text-gray-500 text-center">Next update in: 28 minutes</p>
+            <p className="text-sm text-gray-500 text-center">Next update in: 30 seconds</p>
+
+            <div className="flex items-center justify-between mt-4">
+              <div className="flex items-center space-x-2">
+                <Switch id="emergency" checked={emergencyMode} onCheckedChange={setEmergencyMode} />
+                <Label htmlFor="emergency">Emergency Mode</Label>
+              </div>
+              <select
+                className="border px-2 py-1 rounded-md text-sm"
+                value={pingInterval}
+                onChange={(e) => setPingInterval(Number(e.target.value))}
+              >
+                <option value={30000}>Every 30 seconds</option>
+                <option value={60000}>Every 1 minute</option>
+                <option value={1800000}>Every 30 minutes</option>
+              </select>
+            </div>
           </CardContent>
         </Card>
 
@@ -277,13 +294,9 @@ export function HomeScreen() {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              className="bg-red-600 hover:bg-red-700"
-              onClick={sendEmergencyAlert}
-            >
+            <AlertDialogAction className="bg-red-600 hover:bg-red-700" onClick={sendEmergencyAlert}>
               Send Emergency Alert
             </AlertDialogAction>
-
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
@@ -308,8 +321,7 @@ export function HomeScreen() {
 
 function formatTimeAgo(date: Date): string {
   const now = new Date()
-  const diffInMinutes = Math.floor((now.getTime() - date.getTime()) / (1000 * 60))
-
+  const diffInMinutes = Math.floor((now.getTime() - date.getTime()) / 60000)
   if (diffInMinutes < 1) return "just now"
   if (diffInMinutes === 1) return "1 minute ago"
   return `${diffInMinutes} minutes ago`

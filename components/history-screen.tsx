@@ -25,6 +25,8 @@ import {
   CollapsibleTrigger,
 } from "@/components/ui/collapsible"
 
+
+
 type LocationEntry = {
   id: number
   latitude: number
