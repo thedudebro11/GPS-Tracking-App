@@ -32,6 +32,7 @@ type LocationEntry = {
   accuracy: number
   address?: string
   created_at: string
+  is_emergency?: boolean 
 }
 
 export function HistoryScreen() {
@@ -39,6 +40,7 @@ export function HistoryScreen() {
   const [timeRange, setTimeRange] = useState("24h")
   const [expandedLocation, setExpandedLocation] = useState<number | null>(null)
   const [isClient, setIsClient] = useState(false)
+  const [showAll, setShowAll] = useState(false)
 
   useEffect(() => {
     setIsClient(true)
@@ -50,7 +52,13 @@ export function HistoryScreen() {
       .then((data) => {
         console.log("📍 Location API Response:", data)
         if (Array.isArray(data.locations)) {
-          setLocations(data.locations)
+          // Sort by newest first
+          const sorted = data.locations.sort(
+            (a: LocationEntry, b: LocationEntry) =>
+              new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+          )
+
+          setLocations(sorted)
         } else {
           console.error("❌ Invalid format for locations:", data)
           setLocations([])
@@ -65,6 +73,8 @@ export function HistoryScreen() {
   const toggleLocation = (id: number) => {
     setExpandedLocation(expandedLocation === id ? null : id)
   }
+
+  const displayedLocations = showAll ? locations : locations.slice(0, 5)
 
   return (
     <div className="flex flex-col h-full">
@@ -124,72 +134,87 @@ export function HistoryScreen() {
         </div>
 
         <div className="space-y-3">
-          {Array.isArray(locations) && locations.length > 0 ? (
-            locations
-              .slice()
-              .reverse()
-              .map((location) => (
-                <Collapsible
-                  key={location.id}
-                  open={expandedLocation === location.id}
-                  onOpenChange={() => toggleLocation(location.id)}
-                >
-                  <Card className="shadow-sm">
-                    <CardContent className="p-4">
-                      <CollapsibleTrigger className="flex justify-between items-center w-full">
-                        <div className="flex items-center">
-                          <div className="bg-blue-100 p-2 rounded-full mr-3">
-                            <MapPin className="h-4 w-4 text-blue-600" />
-                          </div>
-                          <div>
-                            <p className="font-medium">
-                              {location.address || "Unknown Location"}
-                            </p>
-                            <p className="text-sm text-gray-500">
-                              {isClient &&
-                                new Date(location.created_at).toLocaleTimeString([], {
-                                  hour: "2-digit",
-                                  minute: "2-digit",
-                                })}
-                            </p>
-                          </div>
+          {displayedLocations.length > 0 ? (
+            displayedLocations.map((location) => (
+              <Collapsible
+                key={location.id}
+                open={expandedLocation === location.id}
+                onOpenChange={() => toggleLocation(location.id)}
+              >
+                <Card className="shadow-sm">
+                  <CardContent className="p-4">
+                    <CollapsibleTrigger className="flex justify-between items-center w-full">
+                      <div className="flex items-center">
+                        <div className="bg-blue-100 p-2 rounded-full mr-3">
+                          <MapPin className="h-4 w-4 text-blue-600" />
                         </div>
-                        {expandedLocation === location.id ? (
-                          <ChevronUp className="h-5 w-5 text-gray-400" />
-                        ) : (
-                          <ChevronDown className="h-5 w-5 text-gray-400" />
-                        )}
-                      </CollapsibleTrigger>
-                      <CollapsibleContent className="pt-3 mt-3 border-t">
-                        <div className="grid grid-cols-2 gap-2 text-sm">
-                          <div>
-                            <p className="text-gray-500">Latitude</p>
-                            <p>{location.latitude.toFixed(6)}</p>
-                          </div>
-                          <div>
-                            <p className="text-gray-500">Longitude</p>
-                            <p>{location.longitude.toFixed(6)}</p>
-                          </div>
-                          <div className="col-span-2">
-                            <p className="text-gray-500">Timestamp</p>
-                            <p>{isClient && new Date(location.created_at).toLocaleString()}</p>
-                          </div>
+                        <div>
+                          <p className="font-medium flex items-center gap-2">
+                            {location.address || "Unknown Location"}
+                            {location.is_emergency && (
+                              <span className="text-red-600 font-bold text-xs bg-red-100 px-2 py-0.5 rounded">
+                                🚨 EMERGENCY
+                              </span>
+                            )}
+                          </p>
+
+                          <p className="text-sm text-gray-500">
+                            {isClient &&
+                              new Date(location.created_at).toLocaleTimeString([], {
+                                hour: "2-digit",
+                                minute: "2-digit",
+                              })}
+                          </p>
                         </div>
-                        <div className="flex justify-end mt-3">
-                          <Button variant="outline" size="sm" className="text-xs">
-                            <Share2 className="h-3 w-3 mr-1" />
-                            Share This Location
-                          </Button>
+                      </div>
+                      {expandedLocation === location.id ? (
+                        <ChevronUp className="h-5 w-5 text-gray-400" />
+                      ) : (
+                        <ChevronDown className="h-5 w-5 text-gray-400" />
+                      )}
+                    </CollapsibleTrigger>
+                    <CollapsibleContent className="pt-3 mt-3 border-t">
+                      <div className="grid grid-cols-2 gap-2 text-sm">
+                        <div>
+                          <p className="text-gray-500">Latitude</p>
+                          <p>{location.latitude.toFixed(6)}</p>
                         </div>
-                      </CollapsibleContent>
-                    </CardContent>
-                  </Card>
-                </Collapsible>
-              ))
+                        <div>
+                          <p className="text-gray-500">Longitude</p>
+                          <p>{location.longitude.toFixed(6)}</p>
+                        </div>
+                        <div className="col-span-2">
+                          <p className="text-gray-500">Timestamp</p>
+                          <p>{isClient && new Date(location.created_at).toLocaleString()}</p>
+                        </div>
+                      </div>
+                      <div className="flex justify-end mt-3">
+                        <Button variant="outline" size="sm" className="text-xs">
+                          <Share2 className="h-3 w-3 mr-1" />
+                          Share This Location
+                        </Button>
+                      </div>
+                    </CollapsibleContent>
+                  </CardContent>
+                </Card>
+              </Collapsible>
+            ))
           ) : (
             <p className="text-sm text-gray-500 text-center mt-6">
               No location entries available.
             </p>
+          )}
+
+          {locations.length > 5 && (
+            <div className="flex justify-center mt-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowAll(!showAll)}
+              >
+                {showAll ? "Show Less" : "Show All"}
+              </Button>
+            </div>
           )}
         </div>
 

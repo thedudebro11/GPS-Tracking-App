@@ -140,6 +140,7 @@ export function HomeScreen() {
           accuracy: currentLocation.accuracy,
           user_id: "guest", // Optional
           message: "User triggered emergency alert!",
+          is_emergency: true,
         }),
       })
 
