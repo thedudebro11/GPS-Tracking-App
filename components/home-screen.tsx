@@ -22,7 +22,6 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
-import { MapView } from "./map-view"
 import {
   Dialog,
   DialogContent,
@@ -31,14 +30,25 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog"
 import { useToast } from "@/hooks/use-toast"
-import { Switch } from "@/components/ui/switch"
-import { Label } from "@/components/ui/label"
+import { MapView } from "./map-view"
 
 export function HomeScreen() {
-  const [showEmergencyAlert, setShowEmergencyAlert] = useState(false)
   const [showShareDialog, setShowShareDialog] = useState(false)
-  const [emergencyMode, setEmergencyMode] = useState(false)
-  const [pingInterval, setPingInterval] = useState(30000)
+  const [showEmergencySetup, setShowEmergencySetup] = useState(false)
+  const [emergencyMode, setEmergencyMode] = useState(() => {
+    if (typeof window !== "undefined") {
+      return localStorage.getItem("emergencyMode") === "true"
+    }
+    return false
+  })
+
+  const [pingInterval, setPingInterval] = useState(() => {
+    if (typeof window !== "undefined") {
+      const stored = localStorage.getItem("pingInterval")
+      return stored ? Number(stored) : 30000
+    }
+    return 30000
+  })
 
   const { toast } = useToast()
   const [formattedTime, setFormattedTime] = useState("")
@@ -56,64 +66,65 @@ export function HomeScreen() {
   const batteryLevel = 78
   const signalStrength = 4
 
+  // Persist state
+  useEffect(() => {
+    localStorage.setItem("emergencyMode", emergencyMode.toString())
+  }, [emergencyMode])
+
+  useEffect(() => {
+    localStorage.setItem("pingInterval", pingInterval.toString())
+  }, [pingInterval])
+
+  // Ping logic (regular + emergency)
   useEffect(() => {
     if (!navigator.geolocation) return
 
     const updateLocation = () => {
       navigator.geolocation.getCurrentPosition(
-        (position) => {
+        async (position) => {
           const { latitude, longitude, accuracy } = position.coords
-          setCurrentLocation({ latitude, longitude, accuracy, updatedAt: new Date() })
+          const updatedAt = new Date()
+          setCurrentLocation({ latitude, longitude, accuracy, updatedAt })
 
-          fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/locations`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ latitude, longitude, accuracy }),
-          })
+          const endpoint = emergencyMode
+            ? `${process.env.NEXT_PUBLIC_API_URL}/api/alerts`
+            : `${process.env.NEXT_PUBLIC_API_URL}/api/locations`
+
+          const payload = emergencyMode
+            ? {
+                latitude,
+                longitude,
+                accuracy,
+                user_id: "guest",
+                message: "Auto emergency ping",
+                is_emergency: true,
+              }
+            : { latitude, longitude, accuracy }
+
+          try {
+            const res = await fetch(endpoint, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(payload),
+            })
+            if (!res.ok) throw new Error("Ping failed")
+            const data = await res.json()
+            console.log("✅ Ping:", data)
+          } catch (err) {
+            console.error("❌ Ping error:", err)
+          }
         },
-        (error) => console.error("Geolocation error:", error),
+        (err) => console.error("Geolocation error:", err),
         { enableHighAccuracy: true }
       )
     }
 
     updateLocation()
-    const intervalId = setInterval(updateLocation, 30000)
-    return () => clearInterval(intervalId)
-  }, [])
-
-  useEffect(() => {
-    const interval = setInterval(() => {
-      if (!emergencyMode || !currentLocation) return
-
-      const sendAlert = async () => {
-        try {
-          const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/alert`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              latitude: currentLocation.latitude,
-              longitude: currentLocation.longitude,
-              accuracy: currentLocation.accuracy,
-              user_id: "guest",
-              message: "User triggered emergency alert!",
-              is_emergency: true,
-            }),
-          })
-
-          const data = await res.json()
-          console.log("✅ Emergency alert sent:", data)
-        } catch (error) {
-          console.error("❌ Failed to send emergency alert:", error)
-        }
-      }
-
-      sendAlert() // ✅ Call the async function inside the interval
-    }, pingInterval)
-
+    const interval = setInterval(updateLocation, pingInterval)
     return () => clearInterval(interval)
-  }, [emergencyMode, currentLocation, pingInterval])
+  }, [emergencyMode, pingInterval])
 
-
+  // UI Time
   useEffect(() => {
     if (currentLocation?.updatedAt) {
       setFormattedTime(currentLocation.updatedAt.toLocaleTimeString())
@@ -123,52 +134,43 @@ export function HomeScreen() {
 
   const copyCoordinates = () => {
     if (!currentLocation) return
-    const coordText = `${currentLocation.latitude.toFixed(6)}, ${currentLocation.longitude.toFixed(6)}`
-    navigator.clipboard.writeText(coordText).then(
+    const text = `${currentLocation.latitude.toFixed(6)}, ${currentLocation.longitude.toFixed(6)}`
+    navigator.clipboard.writeText(text).then(
       () => toast({ title: "Coordinates copied" }),
       () => toast({ title: "Failed to copy", variant: "destructive" })
     )
   }
 
   const sendEmergencyAlert = async () => {
-  if (!currentLocation) return
+    if (!currentLocation) return
+    try {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/alerts`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          latitude: currentLocation.latitude,
+          longitude: currentLocation.longitude,
+          accuracy: currentLocation.accuracy,
+          user_id: "guest",
+          message: "User triggered emergency alert!",
+          is_emergency: true,
+        }),
+      })
 
-  try {
-    const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/alert`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        latitude: currentLocation.latitude,
-        longitude: currentLocation.longitude,
-        accuracy: currentLocation.accuracy,
-        user_id: "guest",
-        message: "User triggered emergency alert!",
-        is_emergency: true,
-      }),
-    })
-
-    if (!response.ok) {
-      throw new Error(`Server returned ${response.status}`)
+      const data = await res.json()
+      toast({
+        title: "🚨 Emergency Sent",
+        description: data.status || "Alert stored successfully.",
+      })
+    } catch (err) {
+      console.error("Emergency alert failed", err)
+      toast({
+        title: "Error",
+        description: "Failed to send emergency alert.",
+        variant: "destructive",
+      })
     }
-
-    const data = await response.json()
-
-    toast({
-      title: "🚨 Emergency Sent",
-      description: data.status || "Alert was successfully stored.",
-    })
-  } catch (err: any) {
-    console.error("❌ Emergency alert failed:", err)
-    toast({
-      title: "Error",
-      description: "Failed to send emergency alert.",
-      variant: "destructive",
-    })
-  } finally {
-    setShowEmergencyAlert(false)
   }
-}
-
 
   if (!currentLocation) {
     return <div className="p-4 text-center text-gray-500">Fetching current location...</div>
@@ -177,9 +179,9 @@ export function HomeScreen() {
   return (
     <div className="flex flex-col h-full">
       <header className="bg-blue-600 text-white p-4 shadow-md">
-        <div className="flex items-center justify-between">
+        <div className="flex justify-between items-center">
           <h1 className="text-2xl font-bold">SafeSteps</h1>
-          <div className="flex items-center space-x-2">
+          <div className="flex space-x-3">
             <div className="flex items-center">
               <Battery className="h-5 w-5 mr-1" />
               <span className="text-sm">{batteryLevel}%</span>
@@ -199,17 +201,15 @@ export function HomeScreen() {
               <div className="bg-blue-100 p-3 rounded-full mb-3">
                 <MapPin className="h-8 w-8 text-blue-600" />
               </div>
-              <h2 className="text-xl font-semibold text-center">Current Location</h2>
-              <p className="text-gray-500 text-center">
-                Last updated: {formattedTime} ({relativeTime})
-              </p>
+              <h2 className="text-xl font-semibold">Current Location</h2>
+              <p className="text-gray-500">Last updated: {formattedTime} ({relativeTime})</p>
             </div>
 
-            <div className="relative w-full h-48 mb-4 rounded-lg overflow-hidden shadow-sm border border-gray-200">
-              {currentLocation && <MapView latitude={currentLocation.latitude} longitude={currentLocation.longitude} />}
+            <div className="relative h-48 w-full rounded-lg mb-4 overflow-hidden shadow-sm border">
+              <MapView latitude={currentLocation.latitude} longitude={currentLocation.longitude} />
               <Dialog>
                 <DialogTrigger asChild>
-                  <Button variant="outline" size="icon" className="absolute top-2 left-2 bg-white shadow-md z-10">
+                  <Button variant="outline" size="icon" className="absolute top-2 left-2 bg-white shadow-md">
                     <Maximize2 className="h-4 w-4" />
                   </Button>
                 </DialogTrigger>
@@ -217,33 +217,34 @@ export function HomeScreen() {
                   <DialogHeader className="p-4 pb-0">
                     <DialogTitle>Location Map</DialogTitle>
                   </DialogHeader>
-                  <div className="flex-1 h-full p-4 pt-0">
-                    <div className="w-full h-full">
-                      <MapView latitude={currentLocation.latitude} longitude={currentLocation.longitude} zoom={15} interactive={true} />
-                    </div>
+                  <div className="flex-1 p-4 pt-0">
+                    <MapView
+                      latitude={currentLocation.latitude}
+                      longitude={currentLocation.longitude}
+                      zoom={15}
+                      interactive
+                    />
                   </div>
                 </DialogContent>
               </Dialog>
             </div>
 
-            <div className="bg-blue-50 rounded-lg p-4 mb-4">
-              <div className="grid grid-cols-2 gap-3 text-sm">
+            <div className="bg-blue-50 p-4 rounded-lg mb-4 grid grid-cols-2 gap-3 text-sm">
+              <div>
+                <p className="text-gray-500 font-medium">Latitude</p>
+                <p className="font-mono">{currentLocation.latitude.toFixed(6)}°</p>
+              </div>
+              <div>
+                <p className="text-gray-500 font-medium">Longitude</p>
+                <p className="font-mono">{currentLocation.longitude.toFixed(6)}°</p>
+              </div>
+              <div className="col-span-2 flex justify-between items-center">
+                <Button size="sm" variant="outline" className="text-xs" onClick={copyCoordinates}>
+                  <Copy className="h-3 w-3 mr-1" /> Copy Coordinates
+                </Button>
                 <div>
-                  <p className="text-gray-500 font-medium">Latitude</p>
-                  <p className="font-mono">{currentLocation.latitude.toFixed(6)}°</p>
-                </div>
-                <div>
-                  <p className="text-gray-500 font-medium">Longitude</p>
-                  <p className="font-mono">{currentLocation.longitude.toFixed(6)}°</p>
-                </div>
-                <div className="col-span-2 flex justify-between items-center">
-                  <Button variant="outline" size="sm" className="text-xs mt-1" onClick={copyCoordinates}>
-                    <Copy className="h-3 w-3 mr-1" /> Copy Coordinates
-                  </Button>
-                  <div>
-                    <p className="text-gray-500 text-xs">Accuracy</p>
-                    <p className="text-xs">±{currentLocation.accuracy} meters</p>
-                  </div>
+                  <p className="text-gray-500 text-xs">Accuracy</p>
+                  <p className="text-xs">±{currentLocation.accuracy} meters</p>
                 </div>
               </div>
             </div>
@@ -251,51 +252,73 @@ export function HomeScreen() {
             <div className="w-full bg-gray-200 rounded-full h-2.5 mb-2">
               <div className="bg-blue-600 h-2.5 rounded-full" style={{ width: "100%" }}></div>
             </div>
-            <p className="text-sm text-gray-500 text-center">Next update in: 30 seconds</p>
+            <p className="text-sm text-center text-gray-500">
+              Next update in {pingInterval / 1000} seconds
+            </p>
 
-            <div className="flex items-center justify-between mt-4">
-              <div className="flex items-center space-x-2">
-                <Switch id="emergency" checked={emergencyMode} onCheckedChange={setEmergencyMode} />
-                <Label htmlFor="emergency">Emergency Mode</Label>
-              </div>
-              <select
-                className="border px-2 py-1 rounded-md text-sm"
-                value={pingInterval}
-                onChange={(e) => setPingInterval(Number(e.target.value))}
+            <div className="mt-4">
+              <Button
+                size="lg"
+                className={`h-16 w-full rounded-xl shadow-md ${
+                  emergencyMode ? "bg-gray-300 text-black" : "bg-red-600 text-white hover:bg-red-700"
+                }`}
+                onClick={() => {
+                  if (emergencyMode) {
+                    setEmergencyMode(false)
+                  } else {
+                    setShowEmergencySetup(true)
+                  }
+                }}
               >
-                <option value={30000}>Every 30 seconds</option>
-                <option value={60000}>Every 1 minute</option>
-                <option value={1800000}>Every 30 minutes</option>
-              </select>
+                <AlertTriangle className="mr-2 h-5 w-5" />
+                {emergencyMode ? "Turn Off Emergency Mode" : "Activate Emergency Mode"}
+              </Button>
+            </div>
+
+            <div className="mt-4">
+              <Button
+                variant="outline"
+                className="w-full border-blue-500 text-blue-700 rounded-xl py-3 px-4 text-base font-semibold flex items-center justify-center hover:bg-blue-50 transition"
+                onClick={() => setShowShareDialog(true)}
+              >
+                <Share2 className="h-4 w-4 mr-2" />
+                Share Location History
+              </Button>
             </div>
           </CardContent>
         </Card>
-
-        <div className="grid grid-cols-1 gap-4">
-          <Button size="lg" className="bg-red-600 hover:bg-red-700 text-white h-16 rounded-xl shadow-md" onClick={() => setShowEmergencyAlert(true)}>
-            <AlertTriangle className="mr-2 h-5 w-5" />
-            Trigger Emergency Alert
-          </Button>
-
-          <Button size="lg" variant="outline" className="border-blue-300 text-blue-700 h-16 rounded-xl shadow-sm" onClick={() => setShowShareDialog(true)}>
-            <Share2 className="mr-2 h-5 w-5" />
-            Share Location History
-          </Button>
-        </div>
       </main>
 
-      <AlertDialog open={showEmergencyAlert} onOpenChange={setShowEmergencyAlert}>
+      <AlertDialog open={showEmergencySetup} onOpenChange={setShowEmergencySetup}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Trigger Emergency Alert</AlertDialogTitle>
+            <AlertDialogTitle>Activate Emergency Mode</AlertDialogTitle>
             <AlertDialogDescription>
-              This will send an emergency alert with your current location to all your emergency contacts. Are you sure?
+              SafeSteps will send your GPS location to emergency contacts at the selected interval.
             </AlertDialogDescription>
           </AlertDialogHeader>
+          <div className="my-4">
+            <select
+              className="w-full border px-2 py-1 rounded-md"
+              value={pingInterval}
+              onChange={(e) => setPingInterval(Number(e.target.value))}
+            >
+              <option value={30000}>Every 30 seconds</option>
+              <option value={60000}>Every 1 minute</option>
+              <option value={1800000}>Every 30 minutes</option>
+            </select>
+          </div>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction className="bg-red-600 hover:bg-red-700" onClick={sendEmergencyAlert}>
-              Send Emergency Alert
+            <AlertDialogAction
+              className="bg-red-600 hover:bg-red-700"
+              onClick={() => {
+                sendEmergencyAlert()
+                setEmergencyMode(true)
+                setShowEmergencySetup(false)
+              }}
+            >
+              Start Emergency Mode
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -311,7 +334,9 @@ export function HomeScreen() {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction className="bg-blue-600 hover:bg-blue-700">Generate Link</AlertDialogAction>
+            <AlertDialogAction className="bg-blue-600 hover:bg-blue-700">
+              Generate Link
+            </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
@@ -321,8 +346,8 @@ export function HomeScreen() {
 
 function formatTimeAgo(date: Date): string {
   const now = new Date()
-  const diffInMinutes = Math.floor((now.getTime() - date.getTime()) / 60000)
-  if (diffInMinutes < 1) return "just now"
-  if (diffInMinutes === 1) return "1 minute ago"
-  return `${diffInMinutes} minutes ago`
+  const diff = Math.floor((now.getTime() - date.getTime()) / 60000)
+  if (diff < 1) return "just now"
+  if (diff === 1) return "1 minute ago"
+  return `${diff} minutes ago`
 }

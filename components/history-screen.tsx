@@ -51,9 +51,23 @@ export function HistoryScreen() {
   }, [])
 
   useEffect(() => {
-    fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/alerts`)
-      .then(res => res.json())
-      .then(data => {
+  const fetchAll = () => {
+    fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/locations`, { cache: "no-store" })
+      .then((res) => res.json())
+      .then((data) => {
+        if (Array.isArray(data.locations)) {
+          const sorted = data.locations.sort(
+            (a: LocationEntry, b: LocationEntry) =>
+              new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+          )
+          setLocations(sorted)
+        }
+      })
+      .catch(console.error)
+
+    fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/alerts`, { cache: "no-store" })
+      .then((res) => res.json())
+      .then((data) => {
         if (Array.isArray(data.emergencies)) {
           const formatted = data.emergencies.map((e: LocationEntry) => ({
             ...e,
@@ -63,32 +77,14 @@ export function HistoryScreen() {
           setEmergencies(formatted)
         }
       })
-      .catch(err => {
-        console.error("❌ Failed to fetch emergencies:", err)
-      })
-  }, [])
+      .catch(console.error)
+  }
 
-  useEffect(() => {
-    fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/locations`)
-      .then((res) => res.json())
-      .then((data) => {
-        console.log("📍 Location API Response:", data)
-        if (Array.isArray(data.locations)) {
-          const sorted = data.locations.sort(
-            (a: LocationEntry, b: LocationEntry) =>
-              new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-          )
-          setLocations(sorted)
-        } else {
-          console.error("❌ Invalid format for locations:", data)
-          setLocations([])
-        }
-      })
-      .catch((err) => {
-        console.error("❌ Failed to fetch locations:", err)
-        setLocations([])
-      })
-  }, [])
+  fetchAll()
+  const interval = setInterval(fetchAll, 5000) // every 5 seconds
+  return () => clearInterval(interval)
+}, [])
+
 
   const merged = [...locations, ...emergencies]
   const sorted = merged.sort(

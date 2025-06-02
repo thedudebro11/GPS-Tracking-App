@@ -23,11 +23,19 @@ export function EmergencyScreen() {
   const [timeRange, setTimeRange] = useState("24h")
 
   useEffect(() => {
+  const fetchAlerts = () => {
     fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/emergencies`)
       .then((res) => res.json())
       .then(setAlerts)
       .catch(console.error)
-  }, [])
+  }
+
+  fetchAlerts() // initial fetch
+  const interval = setInterval(fetchAlerts, 10000) // every 10 seconds
+
+  return () => clearInterval(interval) // cleanup
+}, [])
+
 
   const toggle = (id: number) => {
     setExpanded(expanded === id ? null : id)
