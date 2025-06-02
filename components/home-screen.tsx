@@ -31,10 +31,13 @@ import {
 } from "@/components/ui/dialog"
 import { useToast } from "@/hooks/use-toast"
 import { MapView } from "./map-view"
+import { BackgroundPinger } from "./BackgroundPinger"
+
 
 export function HomeScreen() {
   const [showShareDialog, setShowShareDialog] = useState(false)
   const [showEmergencySetup, setShowEmergencySetup] = useState(false)
+  const [showTrackingSettings, setShowTrackingSettings] = useState(false)
   const [emergencyMode, setEmergencyMode] = useState(() => {
     if (typeof window !== "undefined") {
       return localStorage.getItem("emergencyMode") === "true"
@@ -49,10 +52,18 @@ export function HomeScreen() {
     }
     return 30000
   })
+  const [trackingEnabled, setTrackingEnabled] = useState(() => {
+    if (typeof window !== "undefined") {
+      return localStorage.getItem("activeTrackingEnabled") === "true"
+    }
+    return false
+  })
+
 
   const { toast } = useToast()
   const [formattedTime, setFormattedTime] = useState("")
   const [relativeTime, setRelativeTime] = useState("")
+
 
   type LocationData = {
     latitude: number
@@ -75,54 +86,24 @@ export function HomeScreen() {
     localStorage.setItem("pingInterval", pingInterval.toString())
   }, [pingInterval])
 
-  // Ping logic (regular + emergency)
   useEffect(() => {
-    if (!navigator.geolocation) return
+  if (!navigator.geolocation) return
 
-    const updateLocation = () => {
-      navigator.geolocation.getCurrentPosition(
-        async (position) => {
-          const { latitude, longitude, accuracy } = position.coords
-          const updatedAt = new Date()
-          setCurrentLocation({ latitude, longitude, accuracy, updatedAt })
+  const updateLocation = () => {
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const { latitude, longitude, accuracy } = position.coords
+        const updatedAt = new Date()
+        setCurrentLocation({ latitude, longitude, accuracy, updatedAt })
+      },
+      (err) => console.error("Geolocation error:", err),
+      { enableHighAccuracy: true }
+    )
+  }
 
-          const endpoint = emergencyMode
-            ? `${process.env.NEXT_PUBLIC_API_URL}/api/alerts`
-            : `${process.env.NEXT_PUBLIC_API_URL}/api/locations`
+  updateLocation() // run once
+}, [])
 
-          const payload = emergencyMode
-            ? {
-                latitude,
-                longitude,
-                accuracy,
-                user_id: "guest",
-                message: "Auto emergency ping",
-                is_emergency: true,
-              }
-            : { latitude, longitude, accuracy }
-
-          try {
-            const res = await fetch(endpoint, {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify(payload),
-            })
-            if (!res.ok) throw new Error("Ping failed")
-            const data = await res.json()
-            console.log("✅ Ping:", data)
-          } catch (err) {
-            console.error("❌ Ping error:", err)
-          }
-        },
-        (err) => console.error("Geolocation error:", err),
-        { enableHighAccuracy: true }
-      )
-    }
-
-    updateLocation()
-    const interval = setInterval(updateLocation, pingInterval)
-    return () => clearInterval(interval)
-  }, [emergencyMode, pingInterval])
 
   // UI Time
   useEffect(() => {
@@ -177,6 +158,9 @@ export function HomeScreen() {
   }
 
   return (
+     <>
+    <BackgroundPinger />
+
     <div className="flex flex-col h-full">
       <header className="bg-blue-600 text-white p-4 shadow-md">
         <div className="flex justify-between items-center">
@@ -256,12 +240,66 @@ export function HomeScreen() {
               Next update in {pingInterval / 1000} seconds
             </p>
 
+            <Button
+              variant="default"
+              className="w-full bg-green-600 text-white hover:bg-green-700"
+              onClick={() => setShowTrackingSettings(true)}
+            >
+              📡 Active Tracking
+            </Button>
+            {showTrackingSettings && (
+              <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
+                <div className="bg-white p-6 rounded-lg shadow-lg w-[90%] max-w-sm">
+                  <h2 className="text-lg font-semibold mb-4">Active Tracking Settings</h2>
+                  <div className="space-y-3">
+                    <label className="flex items-center space-x-2">
+                      <input
+                        type="checkbox"
+                        checked={trackingEnabled}
+                        onChange={(e) => setTrackingEnabled(e.target.checked)}
+                      />
+                      <span>Enable Active Tracking</span>
+                    </label>
+
+                    <div>
+                      <label className="text-sm font-medium">Ping Interval:</label>
+                      <select
+                        value={pingInterval}
+                        onChange={(e) => setPingInterval(Number(e.target.value))}
+                        className="w-full border rounded p-2 mt-1"
+                      >
+                        <option value={30000}>Every 30 seconds</option>
+                        <option value={60000}>Every 1 minute</option>
+                        <option value={300000}>Every 5 minutes</option>
+                      </select>
+                    </div>
+
+                    <div className="flex justify-end space-x-2 pt-4">
+                      <Button variant="outline" onClick={() => setShowTrackingSettings(false)}>
+                        Cancel
+                      </Button>
+                      <Button
+                        variant="default"
+                        onClick={() => {
+                          setShowTrackingSettings(false)
+                          localStorage.setItem("activeTrackingEnabled", trackingEnabled.toString())
+                          localStorage.setItem("pingInterval", pingInterval.toString())
+                        }}
+                      >
+                        Save
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+
             <div className="mt-4">
               <Button
                 size="lg"
-                className={`h-16 w-full rounded-xl shadow-md ${
-                  emergencyMode ? "bg-gray-300 text-black" : "bg-red-600 text-white hover:bg-red-700"
-                }`}
+                className={`h-16 w-full rounded-xl shadow-md ${emergencyMode ? "bg-gray-300 text-black" : "bg-red-600 text-white hover:bg-red-700"
+                  }`}
                 onClick={() => {
                   if (emergencyMode) {
                     setEmergencyMode(false)
@@ -341,6 +379,7 @@ export function HomeScreen() {
         </AlertDialogContent>
       </AlertDialog>
     </div>
+</>
   )
 }
 

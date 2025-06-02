@@ -51,39 +51,58 @@ export function HistoryScreen() {
   }, [])
 
   useEffect(() => {
-  const fetchAll = () => {
-    fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/locations`, { cache: "no-store" })
-      .then((res) => res.json())
-      .then((data) => {
-        if (Array.isArray(data.locations)) {
-          const sorted = data.locations.sort(
-            (a: LocationEntry, b: LocationEntry) =>
-              new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-          )
-          setLocations(sorted)
-        }
-      })
-      .catch(console.error)
+    const fetchAll = () => {
+      const now = Date.now()
+      const interval = Number(localStorage.getItem("pingInterval") || "30000")
 
-    fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/alerts`, { cache: "no-store" })
-      .then((res) => res.json())
-      .then((data) => {
-        if (Array.isArray(data.emergencies)) {
-          const formatted = data.emergencies.map((e: LocationEntry) => ({
-            ...e,
-            created_at: e.triggered_at,
-            is_emergency: true,
-          }))
-          setEmergencies(formatted)
-        }
-      })
-      .catch(console.error)
-  }
+      fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/locations`, { cache: "no-store" })
+        .then((res) => res.json())
+        .then((data) => {
+          if (Array.isArray(data.locations)) {
+            const filtered = data.locations.filter((loc: LocationEntry) => {
+              const age = now - new Date(loc.created_at).getTime()
+              return age >= interval
+            })
 
-  fetchAll()
-  const interval = setInterval(fetchAll, 5000) // every 5 seconds
-  return () => clearInterval(interval)
-}, [])
+            const sorted = filtered.sort(
+              (a: LocationEntry, b: LocationEntry) =>
+                new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+            )
+
+            setLocations(sorted)
+          }
+        })
+
+        .catch(console.error)
+
+      fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/alerts`, { cache: "no-store" })
+        .then((res) => res.json())
+        .then((data) => {
+          if (Array.isArray(data.emergencies)) {
+            const formatted = data.emergencies
+              .map((e: LocationEntry) => ({
+                ...e,
+                created_at: e.triggered_at,
+                is_emergency: true,
+              }))
+              .filter((e: LocationEntry) => {
+                const age = now - new Date(e.created_at).getTime()
+                return age >= interval
+              })
+
+            setEmergencies(formatted)
+
+          }
+        })
+        .catch(console.error)
+    }
+
+    fetchAll()
+    const pingInterval = Number(localStorage.getItem("pingInterval") || "30000")
+    const interval = setInterval(fetchAll, pingInterval)
+
+    return () => clearInterval(interval)
+  }, [])
 
 
   const merged = [...locations, ...emergencies]
