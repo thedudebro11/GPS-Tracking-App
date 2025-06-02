@@ -32,15 +32,17 @@ router.post('/', async (req, res) => {
 router.get('/', async (req, res) => {
   try {
     const result = await pool.query(`
-  SELECT id, latitude, longitude, accuracy, address, created_at
-  FROM locations
-  ORDER BY created_at DESC
-`);
+      SELECT id, latitude, longitude, accuracy, address, created_at, is_emergency
+      FROM locations
+      ORDER BY created_at DESC
+    `)
+    res.setHeader('Cache-Control', 'no-store') // avoid browser caching
     res.json({ success: true, locations: result.rows })
   } catch (error) {
     console.error('Error retrieving locations:', error)
     res.status(500).json({ success: false, error: 'Internal server error' })
   }
-})
+});
+
 
 export default router
