@@ -34,6 +34,8 @@ import { MapView } from "./map-view"
 import { BackgroundPinger } from "./BackgroundPinger"
 
 
+
+
 export function HomeScreen() {
   const [showShareDialog, setShowShareDialog] = useState(false)
   const [showEmergencySetup, setShowEmergencySetup] = useState(false)
@@ -87,22 +89,22 @@ export function HomeScreen() {
   }, [pingInterval])
 
   useEffect(() => {
-  if (!navigator.geolocation) return
+    if (!navigator.geolocation) return
 
-  const updateLocation = () => {
-    navigator.geolocation.getCurrentPosition(
-      (position) => {
-        const { latitude, longitude, accuracy } = position.coords
-        const updatedAt = new Date()
-        setCurrentLocation({ latitude, longitude, accuracy, updatedAt })
-      },
-      (err) => console.error("Geolocation error:", err),
-      { enableHighAccuracy: true }
-    )
-  }
+    const updateLocation = () => {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const { latitude, longitude, accuracy } = position.coords
+          const updatedAt = new Date()
+          setCurrentLocation({ latitude, longitude, accuracy, updatedAt })
+        },
+        (err) => console.error("Geolocation error:", err),
+        { enableHighAccuracy: true }
+      )
+    }
 
-  updateLocation() // run once
-}, [])
+    updateLocation() // run once
+  }, [])
 
 
   // UI Time
@@ -158,228 +160,249 @@ export function HomeScreen() {
   }
 
   return (
-     <>
-    <BackgroundPinger />
+    <>
+      <BackgroundPinger />
 
-    <div className="flex flex-col h-full">
-      <header className="bg-blue-600 text-white p-4 shadow-md">
-        <div className="flex justify-between items-center">
-          <h1 className="text-2xl font-bold">SafeSteps</h1>
-          <div className="flex space-x-3">
-            <div className="flex items-center">
-              <Battery className="h-5 w-5 mr-1" />
-              <span className="text-sm">{batteryLevel}%</span>
-            </div>
-            <div className="flex items-center">
-              <Signal className="h-5 w-5" />
-              <span className="text-sm">{signalStrength}/5</span>
+      <div className="flex flex-col h-full">
+        <header className="bg-blue-600 text-white p-4 shadow-md">
+          <div className="flex justify-between items-center">
+            <h1 className="text-2xl font-bold">SafeSteps</h1>
+            <div className="flex space-x-3">
+              <div className="flex items-center">
+                <Battery className="h-5 w-5 mr-1" />
+                <span className="text-sm">{batteryLevel}%</span>
+              </div>
+              <div className="flex items-center">
+                <Signal className="h-5 w-5" />
+                <span className="text-sm">{signalStrength}/5</span>
+              </div>
             </div>
           </div>
-        </div>
-      </header>
+        </header>
 
-      <main className="flex-1 p-4 space-y-6">
-        <Card className="shadow-md border-blue-100">
-          <CardContent className="p-6">
-            <div className="flex flex-col items-center mb-4">
-              <div className="bg-blue-100 p-3 rounded-full mb-3">
-                <MapPin className="h-8 w-8 text-blue-600" />
+        <main className="flex-1 p-4 space-y-6">
+          <Card className="shadow-md border-blue-100">
+            <CardContent className="p-6">
+              <div className="flex flex-col items-center mb-4">
+                <div className="bg-blue-100 p-3 rounded-full mb-3">
+                  <MapPin className="h-8 w-8 text-blue-600" />
+                </div>
+                <h2 className="text-xl font-semibold">Current Location</h2>
+                <p className="text-gray-500">Last updated: {formattedTime} ({relativeTime})</p>
               </div>
-              <h2 className="text-xl font-semibold">Current Location</h2>
-              <p className="text-gray-500">Last updated: {formattedTime} ({relativeTime})</p>
-            </div>
 
-            <div className="relative h-48 w-full rounded-lg mb-4 overflow-hidden shadow-sm border">
-              <MapView latitude={currentLocation.latitude} longitude={currentLocation.longitude} />
-              <Dialog>
-                <DialogTrigger asChild>
-                  <Button variant="outline" size="icon" className="absolute top-2 left-2 bg-white shadow-md">
-                    <Maximize2 className="h-4 w-4" />
-                  </Button>
-                </DialogTrigger>
-                <DialogContent className="sm:max-w-[90vw] h-[80vh] p-0">
-                  <DialogHeader className="p-4 pb-0">
-                    <DialogTitle>Location Map</DialogTitle>
-                  </DialogHeader>
-                  <div className="flex-1 p-4 pt-0">
-                    <MapView
-                      latitude={currentLocation.latitude}
-                      longitude={currentLocation.longitude}
-                      zoom={15}
-                      interactive
-                    />
-                  </div>
-                </DialogContent>
-              </Dialog>
-            </div>
+              <div className="relative h-48 w-full rounded-lg mb-4 overflow-hidden shadow-sm border">
+                <MapView
+                  locations={[{
+                    latitude: currentLocation.latitude,
+                    longitude: currentLocation.longitude,
+                    created_at: currentLocation.updatedAt.toISOString(),
+                    is_emergency: emergencyMode,
+                    is_active_tracking: true
+                  }]}
+                />
 
-            <div className="bg-blue-50 p-4 rounded-lg mb-4 grid grid-cols-2 gap-3 text-sm">
-              <div>
-                <p className="text-gray-500 font-medium">Latitude</p>
-                <p className="font-mono">{currentLocation.latitude.toFixed(6)}°</p>
+
+
+
+
+                <Dialog>
+                  <DialogTrigger asChild>
+                    <Button variant="outline" size="icon" className="absolute top-2 left-2 bg-white shadow-md">
+                      <Maximize2 className="h-4 w-4" />
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="sm:max-w-[90vw] h-[80vh] p-0">
+                    <DialogHeader className="p-4 pb-0">
+                      <DialogTitle>Location Map</DialogTitle>
+                    </DialogHeader>
+                    <div className="flex-1 p-4 pt-0">
+                      {currentLocation && (
+                        <MapView
+                          locations={[{
+                            latitude: currentLocation.latitude,
+                            longitude: currentLocation.longitude,
+                            created_at: new Date().toISOString(),
+                            is_emergency: emergencyMode,
+                            is_active_tracking: true
+                          }]}
+                        />
+
+
+                      )}
+
+                    </div>
+                  </DialogContent>
+                </Dialog>
               </div>
-              <div>
-                <p className="text-gray-500 font-medium">Longitude</p>
-                <p className="font-mono">{currentLocation.longitude.toFixed(6)}°</p>
-              </div>
-              <div className="col-span-2 flex justify-between items-center">
-                <Button size="sm" variant="outline" className="text-xs" onClick={copyCoordinates}>
-                  <Copy className="h-3 w-3 mr-1" /> Copy Coordinates
-                </Button>
+
+              <div className="bg-blue-50 p-4 rounded-lg mb-4 grid grid-cols-2 gap-3 text-sm">
                 <div>
-                  <p className="text-gray-500 text-xs">Accuracy</p>
-                  <p className="text-xs">±{currentLocation.accuracy} meters</p>
+                  <p className="text-gray-500 font-medium">Latitude</p>
+                  <p className="font-mono">{currentLocation.latitude.toFixed(6)}°</p>
                 </div>
-              </div>
-            </div>
-
-            <div className="w-full bg-gray-200 rounded-full h-2.5 mb-2">
-              <div className="bg-blue-600 h-2.5 rounded-full" style={{ width: "100%" }}></div>
-            </div>
-            <p className="text-sm text-center text-gray-500">
-              Next update in {pingInterval / 1000} seconds
-            </p>
-
-            <Button
-              variant="default"
-              className="w-full bg-green-600 text-white hover:bg-green-700"
-              onClick={() => setShowTrackingSettings(true)}
-            >
-              📡 Active Tracking
-            </Button>
-            {showTrackingSettings && (
-              <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
-                <div className="bg-white p-6 rounded-lg shadow-lg w-[90%] max-w-sm">
-                  <h2 className="text-lg font-semibold mb-4">Active Tracking Settings</h2>
-                  <div className="space-y-3">
-                    <label className="flex items-center space-x-2">
-                      <input
-                        type="checkbox"
-                        checked={trackingEnabled}
-                        onChange={(e) => setTrackingEnabled(e.target.checked)}
-                      />
-                      <span>Enable Active Tracking</span>
-                    </label>
-
-                    <div>
-                      <label className="text-sm font-medium">Ping Interval:</label>
-                      <select
-                        value={pingInterval}
-                        onChange={(e) => setPingInterval(Number(e.target.value))}
-                        className="w-full border rounded p-2 mt-1"
-                      >
-                        <option value={30000}>Every 30 seconds</option>
-                        <option value={60000}>Every 1 minute</option>
-                        <option value={300000}>Every 5 minutes</option>
-                      </select>
-                    </div>
-
-                    <div className="flex justify-end space-x-2 pt-4">
-                      <Button variant="outline" onClick={() => setShowTrackingSettings(false)}>
-                        Cancel
-                      </Button>
-                      <Button
-                        variant="default"
-                        onClick={() => {
-                          setShowTrackingSettings(false)
-                          localStorage.setItem("activeTrackingEnabled", trackingEnabled.toString())
-                          localStorage.setItem("pingInterval", pingInterval.toString())
-                        }}
-                      >
-                        Save
-                      </Button>
-                    </div>
+                <div>
+                  <p className="text-gray-500 font-medium">Longitude</p>
+                  <p className="font-mono">{currentLocation.longitude.toFixed(6)}°</p>
+                </div>
+                <div className="col-span-2 flex justify-between items-center">
+                  <Button size="sm" variant="outline" className="text-xs" onClick={copyCoordinates}>
+                    <Copy className="h-3 w-3 mr-1" /> Copy Coordinates
+                  </Button>
+                  <div>
+                    <p className="text-gray-500 text-xs">Accuracy</p>
+                    <p className="text-xs">±{currentLocation.accuracy} meters</p>
                   </div>
                 </div>
               </div>
-            )}
 
+              <div className="w-full bg-gray-200 rounded-full h-2.5 mb-2">
+                <div className="bg-blue-600 h-2.5 rounded-full" style={{ width: "100%" }}></div>
+              </div>
+              <p className="text-sm text-center text-gray-500">
+                Next update in {pingInterval / 1000} seconds
+              </p>
 
-            <div className="mt-4">
               <Button
-                size="lg"
-                className={`h-16 w-full rounded-xl shadow-md ${emergencyMode ? "bg-gray-300 text-black" : "bg-red-600 text-white hover:bg-red-700"
-                  }`}
+                variant="default"
+                className="w-full bg-green-600 text-white hover:bg-green-700"
+                onClick={() => setShowTrackingSettings(true)}
+              >
+                📡 Active Tracking
+              </Button>
+              {showTrackingSettings && (
+                <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
+                  <div className="bg-white p-6 rounded-lg shadow-lg w-[90%] max-w-sm">
+                    <h2 className="text-lg font-semibold mb-4">Active Tracking Settings</h2>
+                    <div className="space-y-3">
+                      <label className="flex items-center space-x-2">
+                        <input
+                          type="checkbox"
+                          checked={trackingEnabled}
+                          onChange={(e) => setTrackingEnabled(e.target.checked)}
+                        />
+                        <span>Enable Active Tracking</span>
+                      </label>
+
+                      <div>
+                        <label className="text-sm font-medium">Ping Interval:</label>
+                        <select
+                          value={pingInterval}
+                          onChange={(e) => setPingInterval(Number(e.target.value))}
+                          className="w-full border rounded p-2 mt-1"
+                        >
+                          <option value={30000}>Every 30 seconds</option>
+                          <option value={60000}>Every 1 minute</option>
+                          <option value={300000}>Every 5 minutes</option>
+                        </select>
+                      </div>
+
+                      <div className="flex justify-end space-x-2 pt-4">
+                        <Button variant="outline" onClick={() => setShowTrackingSettings(false)}>
+                          Cancel
+                        </Button>
+                        <Button
+                          variant="default"
+                          onClick={() => {
+                            setShowTrackingSettings(false)
+                            localStorage.setItem("activeTrackingEnabled", trackingEnabled.toString())
+                            localStorage.setItem("pingInterval", pingInterval.toString())
+                          }}
+                        >
+                          Save
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+
+              <div className="mt-4">
+                <Button
+                  size="lg"
+                  className={`h-16 w-full rounded-xl shadow-md ${emergencyMode ? "bg-gray-300 text-black" : "bg-red-600 text-white hover:bg-red-700"
+                    }`}
+                  onClick={() => {
+                    if (emergencyMode) {
+                      setEmergencyMode(false)
+                    } else {
+                      setShowEmergencySetup(true)
+                    }
+                  }}
+                >
+                  <AlertTriangle className="mr-2 h-5 w-5" />
+                  {emergencyMode ? "Turn Off Emergency Mode" : "Activate Emergency Mode"}
+                </Button>
+              </div>
+
+              <div className="mt-4">
+                <Button
+                  variant="outline"
+                  className="w-full border-blue-500 text-blue-700 rounded-xl py-3 px-4 text-base font-semibold flex items-center justify-center hover:bg-blue-50 transition"
+                  onClick={() => setShowShareDialog(true)}
+                >
+                  <Share2 className="h-4 w-4 mr-2" />
+                  Share Location History
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </main>
+
+        <AlertDialog open={showEmergencySetup} onOpenChange={setShowEmergencySetup}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Activate Emergency Mode</AlertDialogTitle>
+              <AlertDialogDescription>
+                SafeSteps will send your GPS location to emergency contacts at the selected interval.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <div className="my-4">
+              <select
+                className="w-full border px-2 py-1 rounded-md"
+                value={pingInterval}
+                onChange={(e) => setPingInterval(Number(e.target.value))}
+              >
+                <option value={30000}>Every 30 seconds</option>
+                <option value={60000}>Every 1 minute</option>
+                <option value={1800000}>Every 30 minutes</option>
+              </select>
+            </div>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                className="bg-red-600 hover:bg-red-700"
                 onClick={() => {
-                  if (emergencyMode) {
-                    setEmergencyMode(false)
-                  } else {
-                    setShowEmergencySetup(true)
-                  }
+                  sendEmergencyAlert()
+                  setEmergencyMode(true)
+                  setShowEmergencySetup(false)
                 }}
               >
-                <AlertTriangle className="mr-2 h-5 w-5" />
-                {emergencyMode ? "Turn Off Emergency Mode" : "Activate Emergency Mode"}
-              </Button>
-            </div>
+                Start Emergency Mode
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
 
-            <div className="mt-4">
-              <Button
-                variant="outline"
-                className="w-full border-blue-500 text-blue-700 rounded-xl py-3 px-4 text-base font-semibold flex items-center justify-center hover:bg-blue-50 transition"
-                onClick={() => setShowShareDialog(true)}
-              >
-                <Share2 className="h-4 w-4 mr-2" />
-                Share Location History
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      </main>
-
-      <AlertDialog open={showEmergencySetup} onOpenChange={setShowEmergencySetup}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Activate Emergency Mode</AlertDialogTitle>
-            <AlertDialogDescription>
-              SafeSteps will send your GPS location to emergency contacts at the selected interval.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <div className="my-4">
-            <select
-              className="w-full border px-2 py-1 rounded-md"
-              value={pingInterval}
-              onChange={(e) => setPingInterval(Number(e.target.value))}
-            >
-              <option value={30000}>Every 30 seconds</option>
-              <option value={60000}>Every 1 minute</option>
-              <option value={1800000}>Every 30 minutes</option>
-            </select>
-          </div>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              className="bg-red-600 hover:bg-red-700"
-              onClick={() => {
-                sendEmergencyAlert()
-                setEmergencyMode(true)
-                setShowEmergencySetup(false)
-              }}
-            >
-              Start Emergency Mode
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-
-      <AlertDialog open={showShareDialog} onOpenChange={setShowShareDialog}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Share Location History</AlertDialogTitle>
-            <AlertDialogDescription>
-              Generate a secure link to share your location history for the next 24 hours.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction className="bg-blue-600 hover:bg-blue-700">
-              Generate Link
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-    </div>
-</>
+        <AlertDialog open={showShareDialog} onOpenChange={setShowShareDialog}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Share Location History</AlertDialogTitle>
+              <AlertDialogDescription>
+                Generate a secure link to share your location history for the next 24 hours.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction className="bg-blue-600 hover:bg-blue-700">
+                Generate Link
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      </div>
+    </>
   )
 }
 

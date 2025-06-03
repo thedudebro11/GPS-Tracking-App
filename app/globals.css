@@ -92,3 +92,52 @@ body {
     @apply bg-background text-foreground;
   }
 }
+.pulse-marker {
+  width: 16px;
+  height: 16px;
+  border-radius: 9999px;
+  position: relative;
+}
+
+.pulse-marker::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  border-radius: 9999px;
+  animation: pulse 1.5s infinite ease-in-out;
+  opacity: 0.7;
+  background-color: inherit; /* <== THIS is the key */
+  transform: translateZ(0);
+}
+
+
+
+@keyframes pulse {
+  0% {
+    transform: scale(1);
+    opacity: 0.6;
+  }
+  50% {
+    transform: scale(1.75);
+    opacity: 0;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 0.6;
+  }
+}
+
+.pulse-marker.red {
+  background-color: red;
+  z-index: 10;
+  box-shadow: 0 0 0 4px rgba(255, 0, 0, 0.3);
+}
+
+.pulse-marker.blue {
+  background-color: blue;
+  z-index: 10;
+  box-shadow: 0 0 0 4px rgba(0, 0, 255, 0.3);
+}

@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react"
 import {
   Calendar,
-  Download,
   Share2,
   MapPin,
   ChevronDown,
@@ -24,8 +23,7 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible"
-
-
+import { MapView } from "@/components/map-view"
 
 type LocationEntry = {
   id: number
@@ -36,6 +34,7 @@ type LocationEntry = {
   created_at: string
   triggered_at?: string
   is_emergency?: boolean
+  is_active_tracking?: boolean
 }
 
 export function HistoryScreen() {
@@ -45,6 +44,7 @@ export function HistoryScreen() {
   const [expandedLocation, setExpandedLocation] = useState<string | null>(null)
   const [isClient, setIsClient] = useState(false)
   const [showAll, setShowAll] = useState(false)
+  const [focusedLocation, setFocusedLocation] = useState<LocationEntry | null>(null)
 
   useEffect(() => {
     setIsClient(true)
@@ -69,10 +69,10 @@ export function HistoryScreen() {
                 new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
             )
 
+
             setLocations(sorted)
           }
         })
-
         .catch(console.error)
 
       fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/alerts`, { cache: "no-store" })
@@ -90,8 +90,8 @@ export function HistoryScreen() {
                 return age >= interval
               })
 
-            setEmergencies(formatted)
 
+            setEmergencies(formatted)
           }
         })
         .catch(console.error)
@@ -104,13 +104,17 @@ export function HistoryScreen() {
     return () => clearInterval(interval)
   }, [])
 
+  const merged = [...locations, ...emergencies].map((entry, index) => {
+    const isLatest = index === 0 && !entry.is_emergency
+    return {
+      ...entry,
+      is_active_tracking: isLatest,
+    }
+  })
 
-  const merged = [...locations, ...emergencies]
   const sorted = merged.sort(
     (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
   )
-
-  console.log("📦 Merged Locations + Emergencies:", sorted)
 
   const displayedLocations = showAll ? sorted : sorted.slice(0, 5)
 
@@ -143,23 +147,18 @@ export function HistoryScreen() {
       </header>
 
       <main className="flex-1 p-4 space-y-4">
-        <div className="bg-gray-100 h-64 rounded-lg flex items-center justify-center mb-4 relative">
-          <div className="text-center text-gray-500">
-            <MapPin className="h-8 w-8 mx-auto mb-2 text-blue-500" />
-            <p>Map view will appear here</p>
-            <p className="text-xs">(Map integration required)</p>
-          </div>
-          <div className="absolute bottom-4 right-4 flex space-x-2">
-            <Button variant="outline" size="sm" className="bg-white shadow-sm">
-              <Share2 className="h-4 w-4 mr-1" />
-              Share
-            </Button>
-            <Button variant="outline" size="sm" className="bg-white shadow-sm" disabled>
-              <Download className="h-4 w-4 mr-1" />
-              <Crown className="h-3 w-3 mr-1 text-amber-500" />
-              Export
-            </Button>
-          </div>
+        <div className="bg-gray-100 h-64 rounded-lg overflow-hidden mb-4 relative">
+          <MapView
+            key={focusedLocation ? `focused-${focusedLocation.latitude}-${focusedLocation.longitude}` : "latest"}
+            locations={
+              focusedLocation
+                ? [{ ...focusedLocation, is_active_tracking: true }]
+                : sorted.length > 0
+                  ? [{ ...sorted[0], is_active_tracking: true }]
+                  : []
+            }
+            focusedLocation={focusedLocation}
+          />
         </div>
 
         <div className="flex items-center justify-between mb-2">
@@ -176,16 +175,12 @@ export function HistoryScreen() {
               const keyPrefix = location.is_emergency ? 'emergency-' : 'location-'
               const uniqueKey = `${keyPrefix}${location.id}`
 
-              console.log("🧪 Location Entry:", location)
-
               return (
                 <Collapsible
                   key={uniqueKey}
                   open={expandedLocation === uniqueKey}
                   onOpenChange={() =>
-                    setExpandedLocation(
-                      expandedLocation === uniqueKey ? null : uniqueKey
-                    )
+                    setExpandedLocation(expandedLocation === uniqueKey ? null : uniqueKey)
                   }
                 >
                   <Card className="shadow-sm">
@@ -234,10 +229,19 @@ export function HistoryScreen() {
                             <p>{isClient && new Date(location.created_at).toLocaleString()}</p>
                           </div>
                         </div>
-                        <div className="flex justify-end mt-3">
+                        <div className="flex justify-end mt-3 space-x-2">
                           <Button variant="outline" size="sm" className="text-xs">
                             <Share2 className="h-3 w-3 mr-1" />
                             Share This Location
+                          </Button>
+                          <Button
+                            variant="secondary"
+                            size="sm"
+                            className="text-xs"
+                            onClick={() => setFocusedLocation(location)}
+                          >
+                            <MapPin className="h-3 w-3 mr-1" />
+                            View on Map
                           </Button>
                         </div>
                       </CollapsibleContent>
