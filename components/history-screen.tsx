@@ -53,15 +53,23 @@ export function HistoryScreen() {
   useEffect(() => {
     const fetchAll = () => {
       const now = Date.now()
-      const interval = Number(localStorage.getItem("pingInterval") || "30000")
 
+      const rangeLimit: Record<"24h" | "7d" | "30d", number> = {
+        "24h": 24 * 60 * 60 * 1000,
+        "7d": 7 * 24 * 60 * 60 * 1000,
+        "30d": 30 * 24 * 60 * 60 * 1000,
+      }
+
+      const maxAge = rangeLimit[timeRange as "24h" | "7d" | "30d"]
+
+      // --- LOCATIONS FETCH ---
       fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/locations`, { cache: "no-store" })
         .then((res) => res.json())
         .then((data) => {
           if (Array.isArray(data.locations)) {
             const filtered = data.locations.filter((loc: LocationEntry) => {
               const age = now - new Date(loc.created_at).getTime()
-              return age >= interval
+              return age <= maxAge
             })
 
             const sorted = filtered.sort(
@@ -75,6 +83,7 @@ export function HistoryScreen() {
         })
         .catch(console.error)
 
+      // --- EMERGENCIES FETCH ---
       fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/alerts`, { cache: "no-store" })
         .then((res) => res.json())
         .then((data) => {
@@ -87,7 +96,7 @@ export function HistoryScreen() {
               }))
               .filter((e: LocationEntry) => {
                 const age = now - new Date(e.created_at).getTime()
-                return age >= interval
+                return age <= maxAge
               })
 
 
@@ -97,12 +106,14 @@ export function HistoryScreen() {
         .catch(console.error)
     }
 
+
     fetchAll()
     const pingInterval = Number(localStorage.getItem("pingInterval") || "30000")
     const interval = setInterval(fetchAll, pingInterval)
 
     return () => clearInterval(interval)
-  }, [])
+  }, [timeRange])
+
 
   const merged = [...locations, ...emergencies].map((entry, index) => {
     const isLatest = index === 0 && !entry.is_emergency
