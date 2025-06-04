@@ -32,7 +32,7 @@ import {
 import { useToast } from "@/hooks/use-toast"
 import { MapView } from "./map-view"
 import { BackgroundPinger } from "./BackgroundPinger"
-
+import { signOut } from "@/lib/auth"
 
 
 
@@ -169,12 +169,19 @@ export function HomeScreen() {
             <h1 className="text-2xl font-bold">SafeSteps</h1>
             <div className="flex space-x-3">
               <div className="flex items-center">
-                <Battery className="h-5 w-5 mr-1" />
-                <span className="text-sm">{batteryLevel}%</span>
+                <button
+                  onClick={async () => {
+                    await signOut()
+                    window.location.href = "/login"
+                  }}
+                  className="text-sm text-white underline hover:text-red-300 transition"
+                >
+                  Log Out
+                </button>
               </div>
+
               <div className="flex items-center">
-                <Signal className="h-5 w-5" />
-                <span className="text-sm">{signalStrength}/5</span>
+                
               </div>
             </div>
           </div>

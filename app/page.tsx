@@ -35,6 +35,7 @@ export default function SafeStepsApp() {
 
 
           <div className="fixed bottom-0 left-0 right-0 border-t bg-white">
+            
             <TabsList className="w-full h-16 grid grid-cols-4 bg-transparent">
               <TabsTrigger
                 value="home"
