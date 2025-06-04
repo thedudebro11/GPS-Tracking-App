@@ -163,7 +163,7 @@ export function HomeScreen() {
     <>
       <BackgroundPinger />
 
-      <div className="flex flex-col h-full">
+      <div className="flex flex-col min-h-screen">
         <header className="bg-blue-600 text-white p-4 shadow-md">
           <div className="flex justify-between items-center">
             <h1 className="text-2xl font-bold">SafeSteps</h1>
@@ -180,9 +180,9 @@ export function HomeScreen() {
           </div>
         </header>
 
-        <main className="flex-1 p-4 space-y-6">
+        <main className="flex-1 overflow-y-auto p-4 pb-[7rem] space-y-6">
           <Card className="shadow-md border-blue-100">
-            <CardContent className="p-6">
+            <CardContent className="p-6 pb-8">
               <div className="flex flex-col items-center mb-4">
                 <div className="bg-blue-100 p-3 rounded-full mb-3">
                   <MapPin className="h-8 w-8 text-blue-600" />
@@ -402,6 +402,7 @@ export function HomeScreen() {
           </AlertDialogContent>
         </AlertDialog>
       </div>
+
     </>
   )
 }

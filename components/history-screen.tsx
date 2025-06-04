@@ -130,7 +130,7 @@ export function HistoryScreen() {
   const displayedLocations = showAll ? sorted : sorted.slice(0, 5)
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col min-h-screen">
       <header className="bg-blue-600 text-white p-4 shadow-md">
         <div className="flex items-center justify-between">
           <h1 className="text-2xl font-bold">Location History</h1>
@@ -157,7 +157,7 @@ export function HistoryScreen() {
         </div>
       </header>
 
-      <main className="flex-1 p-4 space-y-4">
+      <main className="flex-1 overflow-y-auto p-4 pb-[7rem] space-y-4">
         <div className="bg-gray-100 h-64 rounded-lg overflow-hidden mb-4 relative">
           <MapView
             key={focusedLocation ? `focused-${focusedLocation.latitude}-${focusedLocation.longitude}` : "latest"}
