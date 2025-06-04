@@ -3,13 +3,72 @@
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { ChevronRight, Bell, User, Shield, Sun, Crown, FileText, MessageSquare } from "lucide-react"
-import { useState } from "react"
+import { useEffect, useState } from "react"
+import { supabase } from "@/lib/supabase"
 
 export function SettingsScreen() {
   const [theme, setTheme] = useState("Light")
+  const [user, setUser] = useState<any>(null)
+  
+
+
+  useEffect(() => {
+    const fetchUser = async () => {
+      const {
+        data: { user },
+        error,
+      } = await supabase.auth.getUser()
+
+      if (error) {
+        console.error("Error fetching user:", error)
+      } else {
+        setUser(user)
+      }
+    }
+
+    fetchUser()
+  }, [])
+
+  if (!user) {
+    return <div className="p-4">Loading user info...</div>
+  }
 
   return (
+
     <div className="flex flex-col h-full">
+      <div className="p-4 space-y-4">
+        <h2 className="text-xl font-bold">Settings</h2>
+        <div className="text-sm">
+          <strong>Email:</strong> {user.email}
+        </div>
+        <div className="text-sm">
+          <strong>Created:</strong>{" "}
+          {new Date(user.created_at).toLocaleString()}
+        </div>
+
+        {/* Premium UI check */}
+        {user.user_metadata?.is_premium ? (
+          <div className="text-green-600 font-medium">
+            ✅ Premium User – unlocked features!
+          </div>
+        ) : (
+          <div className="text-yellow-600 font-medium">
+            🚫 Free User – upgrade for more features.
+          </div>
+        )}
+
+        {/* Version and policy */}
+        <div className="text-xs text-muted-foreground">
+          Version: 1.0.0
+        </div>
+        <a
+          href="/privacy-policy"
+          className="text-blue-600 text-sm underline"
+          target="_blank"
+        >
+          Privacy Policy
+        </a>
+      </div>
       {/* Header */}
       <header className="bg-blue-600 text-white p-4 shadow-md rounded-b-lg">
         <h1 className="text-2xl font-bold">Settings</h1>
@@ -78,8 +137,8 @@ export function SettingsScreen() {
         <Card className="bg-gradient-to-r from-blue-600 to-blue-700 text-white">
           <CardContent className="p-6">
             <div className="flex items-center mb-4">
-              <Crown className="h-6 w-6 mr-2 text-amber-300" />
-              <h2 className="text-xl font-bold">Upgrade to Premium</h2>
+
+
             </div>
             <p className="mb-4 text-blue-100">
               Get 30-day location history and more
@@ -89,7 +148,24 @@ export function SettingsScreen() {
                 <p className="text-sm text-blue-100">Starting at</p>
                 <p className="text-xl font-bold">$9.99/month</p>
               </div>
-              <Button className="bg-white text-blue-700 hover:bg-blue-50">Upgrade Now</Button>
+              <Button
+                onClick={async () => {
+                  const res = await fetch("/api/stripe/create-checkout", {
+                    method: "POST",
+                  })
+
+                  const { url } = await res.json()
+                  if (url) {
+                    window.location.href = url
+                  } else {
+                    alert("Failed to start checkout")
+                  }
+                }}
+                className="bg-white text-blue-700 hover:bg-blue-50"
+              >
+                Upgrade Now
+              </Button>
+
             </div>
           </CardContent>
         </Card>
