@@ -1,6 +1,7 @@
 "use client"
-
-import { useState } from "react"
+import { useEffect, useState } from "react"
+import { createClientComponentClient } from "@supabase/auth-helpers-nextjs"
+import { type User } from "@supabase/supabase-js"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { HomeScreen } from "@/components/home-screen"
 import { ContactsScreen } from "@/components/contacts-screen"
@@ -8,10 +9,31 @@ import { SettingsScreen } from "@/components/settings-screen"
 import { HistoryScreen } from "@/components/history-screen"
 import { Home, Users, Settings, Clock, AlertTriangle } from "lucide-react"
 import { EmergencyScreen } from "@/components/emergency-screen"
-
+import { useSearchParams } from 'next/navigation'
 
 export default function SafeStepsApp() {
   const [activeTab, setActiveTab] = useState("home")
+
+  const [user, setUser] = useState<User | null>(null)
+
+  const searchParams = useSearchParams()
+  const tabFromQuery = searchParams.get('tab')
+
+  useEffect(() => {
+    if (tabFromQuery) {
+      setActiveTab(tabFromQuery)
+    }
+  }, [tabFromQuery])
+
+
+  useEffect(() => {
+    const supabase = createClientComponentClient()
+
+    supabase.auth.getUser().then(({ data }) => {
+      setUser(data.user)
+    })
+  }, [])
+
 
   return (
     <div className="flex flex-col h-[100dvh] bg-slate-50">
@@ -24,7 +46,7 @@ export default function SafeStepsApp() {
             <ContactsScreen />
           </TabsContent>
           <TabsContent value="settings" className="flex-1 p-0 m-0">
-            <SettingsScreen />
+            {user && <SettingsScreen user={user} />}
           </TabsContent>
           <TabsContent value="history" className="flex-1 p-0 m-0">
             <HistoryScreen />
@@ -35,7 +57,7 @@ export default function SafeStepsApp() {
 
 
           <div className="fixed bottom-0 left-0 right-0 border-t bg-white">
-            
+
             <TabsList className="w-full h-16 grid grid-cols-4 bg-transparent">
               <TabsTrigger
                 value="home"

@@ -19,7 +19,8 @@ export default function LoginPage() {
     if (result?.error) {
       setError(result.error)
     } else {
-      window.location.href = '/settings' // redirect on success
+      window.location.href = '/' // send to homepage and auto-open settings tab
+
     }
   }
 
