@@ -3,34 +3,25 @@
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { ChevronRight, Bell, User, Shield, Sun, Crown, FileText, MessageSquare } from "lucide-react"
-import { useEffect, useState } from "react"
-import { supabase } from "@/lib/supabase"
-
-export function SettingsScreen() {
-  const [theme, setTheme] = useState("Light")
-  const [user, setUser] = useState<any>(null)
-  
+import { useState } from "react"
 
 
-  useEffect(() => {
-    const fetchUser = async () => {
-      const {
-        data: { user },
-        error,
-      } = await supabase.auth.getUser()
-
-      if (error) {
-        console.error("Error fetching user:", error)
-      } else {
-        setUser(user)
-      }
+type Props = {
+  user: {
+    email?: string
+    created_at: string
+    user_metadata?: {
+      is_premium?: boolean
     }
+  }
+}
 
-    fetchUser()
-  }, [])
+export function SettingsScreen({ user }: Props) {
+  const [theme, setTheme] = useState("Light")
 
-  if (!user) {
-    return <div className="p-4">Loading user info...</div>
+  // Runtime safety check
+  if (!user || !user.created_at) {
+    return <div className="p-4 text-center">User data is missing or invalid.</div>
   }
 
   return (
@@ -39,12 +30,15 @@ export function SettingsScreen() {
       <div className="p-4 space-y-4">
         <h2 className="text-xl font-bold">Settings</h2>
         <div className="text-sm">
-          <strong>Email:</strong> {user.email}
+          <strong>Email:</strong> {user.email ?? "N/A"}
         </div>
         <div className="text-sm">
           <strong>Created:</strong>{" "}
-          {new Date(user.created_at).toLocaleString()}
+          {user.created_at
+            ? new Date(user.created_at).toLocaleString()
+            : "Unknown"}
         </div>
+
 
         {/* Premium UI check */}
         {user.user_metadata?.is_premium ? (
