@@ -36,7 +36,13 @@ import { signOut } from "@/lib/auth"
 
 
 
-export function HomeScreen() {
+type HomeScreenProps = {
+  isPremium: boolean
+  setActiveTab: (tab: string) => void
+}
+
+export function HomeScreen({ isPremium, setActiveTab }: HomeScreenProps) {
+
   const [showShareDialog, setShowShareDialog] = useState(false)
   const [showEmergencySetup, setShowEmergencySetup] = useState(false)
   const [showTrackingSettings, setShowTrackingSettings] = useState(false)
@@ -162,6 +168,14 @@ export function HomeScreen() {
   return (
     <>
       <BackgroundPinger />
+      {isPremium ? (
+  <p className="text-green-600 text-sm">Premium feature unlocked!</p>
+) : (
+  <button onClick={() => setActiveTab("settings")} className="text-blue-600 underline text-sm">
+    Upgrade to Premium to use this feature
+  </button>
+)}
+
 
       <div className="flex flex-col min-h-screen">
         <header className="bg-blue-600 text-white p-4 shadow-md">

@@ -11,6 +11,7 @@ import { Home, Users, Settings, Clock, AlertTriangle } from "lucide-react"
 import { EmergencyScreen } from "@/components/emergency-screen"
 import { useSearchParams } from 'next/navigation'
 
+
 export default function SafeStepsApp() {
   const [activeTab, setActiveTab] = useState("home")
 
@@ -18,6 +19,7 @@ export default function SafeStepsApp() {
 
   const searchParams = useSearchParams()
   const tabFromQuery = searchParams.get('tab')
+  const [isPremium, setIsPremium] = useState(false)
 
   useEffect(() => {
     if (tabFromQuery) {
@@ -40,8 +42,9 @@ export default function SafeStepsApp() {
       <div className="flex-1 overflow-auto pb-16">
         <Tabs defaultValue="home" value={activeTab} onValueChange={setActiveTab} className="h-full flex flex-col">
           <TabsContent value="home" className="flex-1 p-0 m-0">
-            <HomeScreen />
+            <HomeScreen isPremium={isPremium} setActiveTab={setActiveTab} />
           </TabsContent>
+
           <TabsContent value="contacts" className="flex-1 p-0 m-0">
             <ContactsScreen />
           </TabsContent>
