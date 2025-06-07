@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useRef } from "react"
+import { createClientComponentClient } from "@supabase/auth-helpers-nextjs"
 
 export function BackgroundPinger() {
     const timeoutRef = useRef<NodeJS.Timeout | null>(null)
@@ -15,10 +16,20 @@ export function BackgroundPinger() {
             const trackingEnabled = localStorage.getItem("activeTrackingEnabled") === "true"
             const pingInterval = Number(localStorage.getItem("pingInterval") || "30000")
 
+            const supabase = createClientComponentClient()
+            const {
+                data: { user },
+                error: userError,
+            } = await supabase.auth.getUser()
+
+            if (userError || !user) {
+                console.error("❌ No user found or failed to fetch user:", userError)
+                return scheduleNext(pingInterval)
+            }
+
             if (!emergencyMode && !trackingEnabled) {
                 console.log("⏸️ No ping (inactive)")
-                scheduleNext(pingInterval)
-                return
+                return scheduleNext(pingInterval)
             }
 
             navigator.geolocation.getCurrentPosition(
@@ -26,10 +37,10 @@ export function BackgroundPinger() {
                     const { latitude, longitude, accuracy } = pos.coords
 
                     const payload = {
+                        user_id: user.id,
                         latitude,
                         longitude,
                         accuracy,
-                        user_id: "guest",
                         message: emergencyMode ? "Auto emergency ping" : "Regular ping",
                         is_emergency: emergencyMode,
                     }
@@ -44,11 +55,10 @@ export function BackgroundPinger() {
                             headers: { "Content-Type": "application/json" },
                             body: JSON.stringify(payload),
                         })
+
                         const data = await res.json()
                         console.log("📡 Ping at:", new Date().toLocaleTimeString(), data)
                         localStorage.setItem("lastPingTime", Date.now().toString())
-
-
                     } catch (err) {
                         console.error("❌ Ping failed:", err)
                     } finally {
@@ -62,6 +72,8 @@ export function BackgroundPinger() {
                 { enableHighAccuracy: true }
             )
         }
+
+
 
         const scheduleNext = (interval: number) => {
             if (timeoutRef.current) clearTimeout(timeoutRef.current)

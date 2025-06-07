@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState,useRef } from "react"
 import {
   Calendar,
   Share2,
@@ -24,6 +24,8 @@ import {
   CollapsibleTrigger,
 } from "@/components/ui/collapsible"
 import { MapView } from "@/components/map-view"
+import { createClientComponentClient } from "@supabase/auth-helpers-nextjs"
+import { SupabaseClient } from "@supabase/supabase-js"
 
 type LocationEntry = {
   id: number
@@ -39,102 +41,115 @@ type LocationEntry = {
 
 export function HistoryScreen() {
   const [locations, setLocations] = useState<LocationEntry[]>([])
-  const [emergencies, setEmergencies] = useState<LocationEntry[]>([])
-  const [timeRange, setTimeRange] = useState("24h")
+  const [timeRange, setTimeRange] = useState<"24h" | "7d" | "30d">("24h")
   const [expandedLocation, setExpandedLocation] = useState<string | null>(null)
   const [isClient, setIsClient] = useState(false)
   const [showAll, setShowAll] = useState(false)
   const [focusedLocation, setFocusedLocation] = useState<LocationEntry | null>(null)
+  const channelRef = useRef<ReturnType<SupabaseClient['channel']> | null>(null)
 
   useEffect(() => {
     setIsClient(true)
   }, [])
 
-  useEffect(() => {
-    const fetchAll = () => {
-      const now = Date.now()
+  const fetchAll = async (
+    supabase: SupabaseClient,
+    userId: string,
+    timeRange: "24h" | "7d" | "30d",
+    setLocations: (data: LocationEntry[]) => void
+  ) => {
+    const now = Date.now()
+    const rangeLimit = {
+      "24h": 24 * 60 * 60 * 1000,
+      "7d": 7 * 24 * 60 * 60 * 1000,
+      "30d": 30 * 24 * 60 * 60 * 1000,
+    }
+    const fromTime = new Date(now - rangeLimit[timeRange]).toISOString()
 
-      const rangeLimit: Record<"24h" | "7d" | "30d", number> = {
-        "24h": 24 * 60 * 60 * 1000,
-        "7d": 7 * 24 * 60 * 60 * 1000,
-        "30d": 30 * 24 * 60 * 60 * 1000,
-      }
+    const { data, error } = await supabase
+      .from("locations")
+      .select("*")
+      .eq("user_id", userId)
+      .gte("created_at", fromTime)
+      .order("created_at", { ascending: false })
 
-      const maxAge = rangeLimit[timeRange as "24h" | "7d" | "30d"]
-
-      // --- LOCATIONS FETCH ---
-      fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/locations`, { cache: "no-store" })
-        .then((res) => res.json())
-        .then((data) => {
-          if (Array.isArray(data.locations)) {
-            const filtered = data.locations.filter((loc: LocationEntry) => {
-              const age = now - new Date(loc.created_at).getTime()
-              return age <= maxAge
-            })
-
-            const sorted = filtered.sort(
-              (a: LocationEntry, b: LocationEntry) =>
-                new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-            )
-
-
-            setLocations(sorted)
-          }
-        })
-        .catch(console.error)
-
-      // --- EMERGENCIES FETCH ---
-      fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/alerts`, { cache: "no-store" })
-        .then((res) => res.json())
-        .then((data) => {
-          if (Array.isArray(data.emergencies)) {
-            const formatted = data.emergencies
-              .map((e: LocationEntry) => ({
-                ...e,
-                created_at: e.triggered_at,
-                is_emergency: true,
-              }))
-              .filter((e: LocationEntry) => {
-                const age = now - new Date(e.created_at).getTime()
-                return age <= maxAge
-              })
-
-
-            setEmergencies(formatted)
-          }
-        })
-        .catch(console.error)
+    if (!error && data) {
+      setLocations(data as LocationEntry[])
+      console.log("🛰️ Live fetched locations:", data)
+    } else {
+      console.error("❌ Fetch failed:", error)
     }
 
+    console.log("🛰️ Live fetched locations:", data)
+    setLocations((data || []) as LocationEntry[])
 
-    fetchAll()
-    const pingInterval = Number(localStorage.getItem("pingInterval") || "30000")
-    const interval = setInterval(fetchAll, pingInterval)
+  }
 
-    return () => clearInterval(interval)
+
+
+
+  useEffect(() => {
+    const supabase = createClientComponentClient()
+
+    const setup = async () => {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return
+
+      await fetchAll(supabase, user.id, timeRange, setLocations)
+
+      // Unsubscribe old channel if it exists
+      if (channelRef.current) {
+        channelRef.current.unsubscribe()
+      }
+
+      const channel = supabase
+        .channel(`realtime-location-${user.id}`)
+        .on(
+          "postgres_changes",
+          {
+            event: "INSERT",
+            schema: "public",
+            table: "locations"
+          },
+          (payload) => {
+            console.log("🧠 SUBSCRIPTION FIRED", payload)
+            fetchAll(supabase, user.id, timeRange, setLocations)
+          }
+        )
+        .subscribe()
+
+      channelRef.current = channel
+    }
+
+    setup()
+
+    return () => {
+      if (channelRef.current) {
+        channelRef.current.unsubscribe()
+        channelRef.current = null
+      }
+    }
   }, [timeRange])
 
 
-  const merged = [...locations, ...emergencies].map((entry, index) => {
-    const isLatest = index === 0 && !entry.is_emergency
-    return {
-      ...entry,
-      is_active_tracking: isLatest,
-    }
-  })
-
-  const sorted = merged.sort(
+  const sorted = [...locations].sort(
     (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
   )
 
-  const displayedLocations = showAll ? sorted : sorted.slice(0, 5)
+  const merged = sorted.map((entry, index) => ({
+    ...entry,
+    is_active_tracking: index === 0,
+  }))
+
+  const displayedLocations = showAll ? merged : merged.slice(0, 5)
+
 
   return (
     <div className="flex flex-col min-h-screen">
       <header className="bg-blue-600 text-white p-4 shadow-md">
         <div className="flex items-center justify-between">
           <h1 className="text-2xl font-bold">Location History</h1>
-          <Select value={timeRange} onValueChange={setTimeRange}>
+          <Select value={timeRange} onValueChange={(value) => setTimeRange(value as "24h" | "7d" | "30d")}>
             <SelectTrigger className="w-[100px] bg-blue-500 border-blue-400 text-white">
               <SelectValue placeholder="Time Range" />
             </SelectTrigger>
