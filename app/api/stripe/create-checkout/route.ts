@@ -27,8 +27,8 @@ export async function POST() {
         quantity: 1,
       },
     ],
-    success_url: `${process.env.NEXT_PUBLIC_APP_URL}/settings?success=true`,
-    cancel_url: `${process.env.NEXT_PUBLIC_APP_URL}/settings?canceled=true`,
+    success_url: `${process.env.NEXT_PUBLIC_APP_URL}/?tab=settings&success=true`,
+    cancel_url: `${process.env.NEXT_PUBLIC_APP_URL}/?tab=settings&canceled=true`,
     metadata: {
       user_id: user.id, // ✅ dynamically injected
     },

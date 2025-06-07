@@ -30,11 +30,54 @@ export default function SafeStepsApp() {
 
   useEffect(() => {
     const supabase = createClientComponentClient()
+    const successParam = searchParams.get("success")
 
-    supabase.auth.getUser().then(({ data }) => {
-      setUser(data.user)
-    })
-  }, [])
+    const loadUser = async () => {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return
+
+      setUser(user)
+
+      // ✅ Upsert user to ensure row exists
+      const { data: existingUser } = await supabase
+        .from("users")
+        .select("id")
+        .eq("id", user.id)
+        .single()
+
+      if (!existingUser) {
+        await supabase
+          .from("users")
+          .insert({ id: user.id, is_premium: false })
+      }
+
+
+      // Now fetch is_premium
+      const { data: profile, error } = await supabase
+        .from("users")
+        .select("is_premium")
+        .eq("id", user.id)
+        .single()
+
+      if (error) {
+        console.error("Failed to fetch premium status:", error)
+      }
+
+      setIsPremium(profile?.is_premium ?? false)
+
+      console.log("🔥 Fetched is_premium:", profile?.is_premium)
+      console.log("👤 Logged-in user:", user?.id)
+
+
+      if (successParam === "true") {
+        console.log("✅ Stripe redirect: refreshed premium status")
+      }
+    }
+
+    loadUser()
+  }, [searchParams])
+
+
 
 
   return (
@@ -49,7 +92,8 @@ export default function SafeStepsApp() {
             <ContactsScreen />
           </TabsContent>
           <TabsContent value="settings" className="flex-1 p-0 m-0">
-            {user && <SettingsScreen user={user} />}
+            {user && <SettingsScreen user={user} isPremium={isPremium} />
+            }
           </TabsContent>
           <TabsContent value="history" className="flex-1 p-0 m-0">
             <HistoryScreen />

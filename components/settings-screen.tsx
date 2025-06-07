@@ -10,13 +10,12 @@ type Props = {
   user: {
     email?: string
     created_at: string
-    user_metadata?: {
-      is_premium?: boolean
-    }
   }
+  isPremium: boolean
 }
 
-export function SettingsScreen({ user }: Props) {
+
+export function SettingsScreen({ user, isPremium }: Props) {
   const [theme, setTheme] = useState("Light")
 
   // Runtime safety check
@@ -40,8 +39,7 @@ export function SettingsScreen({ user }: Props) {
         </div>
 
 
-        {/* Premium UI check */}
-        {user.user_metadata?.is_premium ? (
+        {isPremium ? (
           <div className="text-green-600 font-medium">
             ✅ Premium User – unlocked features!
           </div>
@@ -50,6 +48,7 @@ export function SettingsScreen({ user }: Props) {
             🚫 Free User – upgrade for more features.
           </div>
         )}
+
 
         {/* Version and policy */}
         <div className="text-xs text-muted-foreground">
@@ -127,42 +126,39 @@ export function SettingsScreen({ user }: Props) {
           </CardContent>
         </Card>
 
-        {/* Upgrade to Premium */}
-        <Card className="bg-gradient-to-r from-blue-600 to-blue-700 text-white">
-          <CardContent className="p-6">
-            <div className="flex items-center mb-4">
+        {!isPremium && (
+          <Card className="bg-gradient-to-r from-blue-600 to-blue-700 text-white">
+            <CardContent className="p-6">
+              <p className="mb-4 text-blue-100">
+                Get 30-day location history and more
+              </p>
+              <div className="flex justify-between items-center">
+                <div>
+                  <p className="text-sm text-blue-100">Starting at</p>
+                  <p className="text-xl font-bold">$9.99/month</p>
+                </div>
+                <Button
+                  onClick={async () => {
+                    const res = await fetch("/api/stripe/create-checkout", {
+                      method: "POST",
+                    })
 
-
-            </div>
-            <p className="mb-4 text-blue-100">
-              Get 30-day location history and more
-            </p>
-            <div className="flex justify-between items-center">
-              <div>
-                <p className="text-sm text-blue-100">Starting at</p>
-                <p className="text-xl font-bold">$9.99/month</p>
+                    const { url } = await res.json()
+                    if (url) {
+                      window.location.href = url
+                    } else {
+                      alert("Failed to start checkout")
+                    }
+                  }}
+                  className="bg-white text-blue-700 hover:bg-blue-50"
+                >
+                  Upgrade Now
+                </Button>
               </div>
-              <Button
-                onClick={async () => {
-                  const res = await fetch("/api/stripe/create-checkout", {
-                    method: "POST",
-                  })
+            </CardContent>
+          </Card>
+        )}
 
-                  const { url } = await res.json()
-                  if (url) {
-                    window.location.href = url
-                  } else {
-                    alert("Failed to start checkout")
-                  }
-                }}
-                className="bg-white text-blue-700 hover:bg-blue-50"
-              >
-                Upgrade Now
-              </Button>
-
-            </div>
-          </CardContent>
-        </Card>
 
         {/* Data Export & Feedback */}
         <Card>

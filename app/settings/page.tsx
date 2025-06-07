@@ -1,31 +1,37 @@
-// app/settings/page.tsx
+"use client"
 
-import { createServerComponentClient } from "@supabase/auth-helpers-nextjs"
-import { cookies } from "next/headers"
 import { SettingsScreen } from "@/components/settings-screen"
-import { redirect } from "next/navigation"
+import { createClientComponentClient } from "@supabase/auth-helpers-nextjs"
+import { useEffect, useState } from "react"
+import { type User } from "@supabase/supabase-js"
 
-export default async function SettingsPage() {
-  const supabase = createServerComponentClient({ cookies })
+export default function SettingsPage() {
+  const [user, setUser] = useState<User | null>(null)
+  const [isPremium, setIsPremium] = useState(false)
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
+  useEffect(() => {
+    const supabase = createClientComponentClient()
 
-  // Check for user presence
-  if (!user || !user.created_at) {
-    // Redirect to login if user is not authenticated or missing required info
-    redirect("/login")
-  }
+    const load = async () => {
+      const { data } = await supabase.auth.getUser()
+      if (!data.user) return
+      const user = data.user
+      setUser(user)
 
-  // Explicitly construct only the expected fields
-  const safeUser = {
-    email: user.email ?? "N/A",
-    created_at: user.created_at,
-    user_metadata: {
-      is_premium: user.user_metadata?.is_premium ?? false,
-    },
-  }
+      const { data: profile } = await supabase
+        .from("users")
+        .select("is_premium")
+        .eq("id", user.id)
+        .single()
 
-  return <SettingsScreen user={safeUser} />
+
+      setIsPremium(profile?.is_premium ?? false)
+    }
+
+    load()
+  }, [])
+
+  if (!user) return <div>Loading...</div>
+
+  return <SettingsScreen user={user} isPremium={isPremium} />
 }
