@@ -33,7 +33,7 @@ import { useToast } from "@/hooks/use-toast"
 import { MapView } from "./map-view"
 import { BackgroundPinger } from "./BackgroundPinger"
 import { signOut } from "@/lib/auth"
-
+import { createClientComponentClient } from "@supabase/auth-helpers-nextjs"
 
 
 type HomeScreenProps = {
@@ -130,8 +130,21 @@ export function HomeScreen({ isPremium, setActiveTab }: HomeScreenProps) {
     )
   }
 
+
   const sendEmergencyAlert = async () => {
     if (!currentLocation) return
+
+    const supabase = createClientComponentClient()
+    const {
+      data: { user },
+      error,
+    } = await supabase.auth.getUser()
+
+    if (error || !user) {
+      console.error("❌ No user found:", error)
+      return
+    }
+
     try {
       const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/alerts`, {
         method: "POST",
@@ -140,8 +153,7 @@ export function HomeScreen({ isPremium, setActiveTab }: HomeScreenProps) {
           latitude: currentLocation.latitude,
           longitude: currentLocation.longitude,
           accuracy: currentLocation.accuracy,
-          user_id: "guest",
-          message: "User triggered emergency alert!",
+          user_id: user.id, // ✅ FIXED: now a real UUID
           is_emergency: true,
         }),
       })
@@ -161,6 +173,7 @@ export function HomeScreen({ isPremium, setActiveTab }: HomeScreenProps) {
     }
   }
 
+
   if (!currentLocation) {
     return <div className="p-4 text-center text-gray-500">Fetching current location...</div>
   }
@@ -169,12 +182,12 @@ export function HomeScreen({ isPremium, setActiveTab }: HomeScreenProps) {
     <>
       <BackgroundPinger />
       {isPremium ? (
-  <p className="text-green-600 text-sm">Premium feature unlocked!</p>
-) : (
-  <button onClick={() => setActiveTab("settings")} className="text-blue-600 underline text-sm">
-    Upgrade to Premium to use this feature
-  </button>
-)}
+        <p className="text-green-600 text-sm">Premium feature unlocked!</p>
+      ) : (
+        <button onClick={() => setActiveTab("settings")} className="text-blue-600 underline text-sm">
+          Upgrade to Premium to use this feature
+        </button>
+      )}
 
 
       <div className="flex flex-col min-h-screen">
@@ -195,7 +208,7 @@ export function HomeScreen({ isPremium, setActiveTab }: HomeScreenProps) {
               </div>
 
               <div className="flex items-center">
-                
+
               </div>
             </div>
           </div>

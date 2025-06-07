@@ -41,7 +41,6 @@ export function BackgroundPinger() {
                         latitude,
                         longitude,
                         accuracy,
-                        message: emergencyMode ? "Auto emergency ping" : "Regular ping",
                         is_emergency: emergencyMode,
                     }
 
