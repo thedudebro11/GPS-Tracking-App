@@ -9,9 +9,18 @@ export async function login(formData: FormData) {
   const email = formData.get('email') as string
   const password = formData.get('password') as string
 
-  const { error } = await supabase.auth.signInWithPassword({ email, password })
+  const { data: authData, error } = await supabase.auth.signInWithPassword({ email, password })
 
-  if (error) return { error: error.message }
+  if (error || !authData.user) return { error: error?.message || 'Login failed.' }
 
-  return { success: true }
+  const { data: userData } = await supabase
+    .from('users')
+    .select('is_premium')
+    .eq('id', authData.user.id)
+    .single()
+
+  return {
+    success: true,
+    isPremium: userData?.is_premium ?? false,
+  }
 }

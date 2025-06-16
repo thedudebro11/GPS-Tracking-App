@@ -26,6 +26,8 @@ import {
 import { MapView } from "@/components/map-view"
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs"
 import { SupabaseClient } from "@supabase/supabase-js"
+import { useUser } from "@/app/context/UserContext"
+
 
 type LocationEntry = {
   id: number
@@ -40,6 +42,7 @@ type LocationEntry = {
 }
 
 export function HistoryScreen() {
+  const { isPremium } = useUser()
   const [locations, setLocations] = useState<LocationEntry[]>([])
   const [timeRange, setTimeRange] = useState<"24h" | "7d" | "30d">("24h")
   const [expandedLocation, setExpandedLocation] = useState<string | null>(null)
@@ -47,6 +50,12 @@ export function HistoryScreen() {
   const [showAll, setShowAll] = useState(false)
   const [focusedLocation, setFocusedLocation] = useState<LocationEntry | null>(null)
   const channelRef = useRef<ReturnType<SupabaseClient['channel']> | null>(null)
+  const { refreshUserStatus } = useUser()
+
+
+  useEffect(() => {
+    refreshUserStatus()
+  }, [])
 
   useEffect(() => {
     setIsClient(true)
@@ -84,8 +93,6 @@ export function HistoryScreen() {
     setLocations((data || []) as LocationEntry[])
 
   }
-
-
 
 
   useEffect(() => {
@@ -159,20 +166,21 @@ export function HistoryScreen() {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="24h">Last 24h</SelectItem>
-              <SelectItem value="7d" disabled>
+              <SelectItem value="7d" disabled={!isPremium}>
                 <div className="flex items-center">
                   <span>Last 7d</span>
-                  <Crown className="h-3 w-3 ml-1 text-amber-500" />
+                  {!isPremium && <Crown className="h-3 w-3 ml-1 text-amber-500" />}
                 </div>
               </SelectItem>
-              <SelectItem value="30d" disabled>
+              <SelectItem value="30d" disabled={!isPremium}>
                 <div className="flex items-center">
                   <span>Last 30d</span>
-                  <Crown className="h-3 w-3 ml-1 text-amber-500" />
+                  {!isPremium && <Crown className="h-3 w-3 ml-1 text-amber-500" />}
                 </div>
               </SelectItem>
             </SelectContent>
           </Select>
+
         </div>
       </header>
 
@@ -297,14 +305,23 @@ export function HistoryScreen() {
 
         <Card className="bg-blue-50 border-blue-200 mt-4">
           <CardContent className="p-4 text-center">
-            <p className="text-sm text-blue-700">
-              Free plan stores location history for 24 hours only.
-            </p>
-            <Button variant="link" className="text-blue-700 p-0 h-auto mt-1">
-              Upgrade to Premium for 30-day history
-            </Button>
+            {!isPremium ? (
+              <>
+                <p className="text-sm text-blue-700">
+                  Free plan stores location history for 24 hours only.
+                </p>
+                <Button variant="link" className="text-blue-700 p-0 h-auto mt-1">
+                  Upgrade to Premium for 30-day history
+                </Button>
+              </>
+            ) : (
+              <p className="text-sm text-blue-700">
+                You’re on Premium — full 30-day location history unlocked. 🎉
+              </p>
+            )}
           </CardContent>
         </Card>
+
       </main>
     </div>
   )

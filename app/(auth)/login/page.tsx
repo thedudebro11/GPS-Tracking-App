@@ -19,8 +19,8 @@ export default function LoginPage() {
     if (result?.error) {
       setError(result.error)
     } else {
-      window.location.href = '/' // send to homepage and auto-open settings tab
-
+      localStorage.setItem('isPremium', JSON.stringify(result.isPremium))
+      window.location.href = '/'
     }
   }
 

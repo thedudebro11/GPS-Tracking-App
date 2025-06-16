@@ -6,6 +6,8 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { useUser } from "@/app/context/UserContext"
+
 
 type EmergencyEntry = {
   id: number
@@ -21,20 +23,28 @@ export function EmergencyScreen() {
   const [alerts, setAlerts] = useState<EmergencyEntry[]>([])
   const [expanded, setExpanded] = useState<number | null>(null)
   const [timeRange, setTimeRange] = useState("24h")
+  const { isPremium } = useUser()
+  const { refreshUserStatus } = useUser()
+
 
   useEffect(() => {
-  const fetchAlerts = () => {
-    fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/emergencies`)
-      .then((res) => res.json())
-      .then(setAlerts)
-      .catch(console.error)
-  }
+    refreshUserStatus()
+  }, [])
 
-  fetchAlerts() // initial fetch
-  const interval = setInterval(fetchAlerts, 10000) // every 10 seconds
 
-  return () => clearInterval(interval) // cleanup
-}, [])
+  useEffect(() => {
+    const fetchAlerts = () => {
+      fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/emergencies`)
+        .then((res) => res.json())
+        .then(setAlerts)
+        .catch(console.error)
+    }
+
+    fetchAlerts() // initial fetch
+    const interval = setInterval(fetchAlerts, 10000) // every 10 seconds
+
+    return () => clearInterval(interval) // cleanup
+  }, [])
 
 
   const toggle = (id: number) => {
@@ -46,26 +56,27 @@ export function EmergencyScreen() {
       <header className="bg-red-600 text-white p-4 shadow-md">
         <div className="flex items-center justify-between">
           <h1 className="text-2xl font-bold">Emergency History</h1>
-          <Select value={timeRange} onValueChange={setTimeRange}>
+          <Select value={timeRange} onValueChange={(value) => setTimeRange(value as "24h" | "7d" | "30d")}>
             <SelectTrigger className="w-[100px] bg-red-500 border-red-400 text-white">
               <SelectValue placeholder="Time Range" />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="24h">Last 24h</SelectItem>
-              <SelectItem value="7d" disabled>
+              <SelectItem value="7d" disabled={!isPremium}>
                 <div className="flex items-center">
                   <span>Last 7d</span>
-                  <Crown className="h-3 w-3 ml-1 text-amber-500" />
+                  {!isPremium && <Crown className="h-3 w-3 ml-1 text-amber-500" />}
                 </div>
               </SelectItem>
-              <SelectItem value="30d" disabled>
+              <SelectItem value="30d" disabled={!isPremium}>
                 <div className="flex items-center">
                   <span>Last 30d</span>
-                  <Crown className="h-3 w-3 ml-1 text-amber-500" />
+                  {!isPremium && <Crown className="h-3 w-3 ml-1 text-amber-500" />}
                 </div>
               </SelectItem>
             </SelectContent>
           </Select>
+
         </div>
       </header>
 

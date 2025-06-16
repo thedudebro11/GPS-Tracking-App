@@ -1,8 +1,7 @@
-// app/layout.tsx
 import "./globals.css"
 import { BackgroundPinger } from "@/components/BackgroundPinger"
 import { Toaster } from "@/components/ui/toaster"
-
+import { UserProvider } from "../app/context/UserContext"
 
 export const metadata = {
   title: "SafeSteps",
@@ -13,9 +12,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en">
       <body>
-        <BackgroundPinger/>
-        {children}
-        <Toaster />
+        <UserProvider>
+          <BackgroundPinger />
+          {children}
+          <Toaster />
+        </UserProvider>
       </body>
     </html>
   )
