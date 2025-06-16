@@ -10,7 +10,11 @@ export default function SettingsPage() {
   const [isPremium, setIsPremium] = useState(false)
 
   useEffect(() => {
-    const supabase = createClientComponentClient()
+    const supabase = createClientComponentClient({
+      supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      supabaseKey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    })
+
 
     const load = async () => {
       const { data } = await supabase.auth.getUser()

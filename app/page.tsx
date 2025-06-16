@@ -29,7 +29,11 @@ export default function SafeStepsApp() {
 
 
   useEffect(() => {
-    const supabase = createClientComponentClient()
+    const supabase = createClientComponentClient({
+      supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      supabaseKey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    })
+
     const successParam = searchParams.get("success")
 
     const loadUser = async () => {

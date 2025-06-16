@@ -16,7 +16,11 @@ export function BackgroundPinger() {
             const trackingEnabled = localStorage.getItem("activeTrackingEnabled") === "true"
             const pingInterval = Number(localStorage.getItem("pingInterval") || "30000")
 
-            const supabase = createClientComponentClient()
+            const supabase = createClientComponentClient({
+                supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL!,
+                supabaseKey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+            })
+
             const {
                 data: { user },
                 error: userError,

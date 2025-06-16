@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState,useRef } from "react"
+import { useEffect, useState, useRef } from "react"
 import {
   Calendar,
   Share2,
@@ -89,7 +89,11 @@ export function HistoryScreen() {
 
 
   useEffect(() => {
-    const supabase = createClientComponentClient()
+    const supabase = createClientComponentClient({
+      supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      supabaseKey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    })
+
 
     const setup = async () => {
       const { data: { user } } = await supabase.auth.getUser()
