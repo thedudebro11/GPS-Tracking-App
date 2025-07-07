@@ -1,7 +1,8 @@
 "use client"
 
 import { useEffect, useRef } from "react"
-import { createClientComponentClient } from "@supabase/auth-helpers-nextjs"
+import { supabase } from "@/lib/supabase"
+
 
 export function BackgroundPinger() {
     const timeoutRef = useRef<NodeJS.Timeout | null>(null)
@@ -16,11 +17,7 @@ export function BackgroundPinger() {
             const trackingEnabled = localStorage.getItem("activeTrackingEnabled") === "true"
             const pingInterval = Number(localStorage.getItem("pingInterval") || "30000")
 
-            const supabase = createClientComponentClient({
-                supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL!,
-                supabaseKey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-            })
-
+    
             const {
                 data: { user },
                 error: userError,

@@ -24,7 +24,7 @@ import {
   CollapsibleTrigger,
 } from "@/components/ui/collapsible"
 import { MapView } from "@/components/map-view"
-import { createClientComponentClient } from "@supabase/auth-helpers-nextjs"
+import { supabase } from "@/lib/supabase"
 import { SupabaseClient } from "@supabase/supabase-js"
 import { useUser } from "@/app/context/UserContext"
 
@@ -96,10 +96,7 @@ export function HistoryScreen() {
 
 
   useEffect(() => {
-    const supabase = createClientComponentClient({
-      supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      supabaseKey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    })
+  
 
 
     const setup = async () => {

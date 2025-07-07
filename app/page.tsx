@@ -1,6 +1,6 @@
 "use client"
 import { useEffect, useState } from "react"
-import { createClientComponentClient } from "@supabase/auth-helpers-nextjs"
+import { supabase } from "@/lib/supabase"
 import { type User } from "@supabase/supabase-js"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { HomeScreen } from "@/components/home-screen"
@@ -29,10 +29,6 @@ export default function SafeStepsApp() {
 
 
   useEffect(() => {
-    const supabase = createClientComponentClient({
-      supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      supabaseKey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    })
 
     const successParam = searchParams.get("success")
 

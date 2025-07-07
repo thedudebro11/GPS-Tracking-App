@@ -33,7 +33,8 @@ import { useToast } from "@/hooks/use-toast"
 import { MapView } from "./map-view"
 import { BackgroundPinger } from "./BackgroundPinger"
 import { signOut } from "@/lib/auth"
-import { createClientComponentClient } from "@supabase/auth-helpers-nextjs"
+import { supabase } from "@/lib/supabase"
+
 
 
 type HomeScreenProps = {
@@ -134,10 +135,7 @@ export function HomeScreen({ isPremium, setActiveTab }: HomeScreenProps) {
   const sendEmergencyAlert = async () => {
     if (!currentLocation) return
 
-    const supabase = createClientComponentClient({
-      supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      supabaseKey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    })
+    
 
     const {
       data: { user },

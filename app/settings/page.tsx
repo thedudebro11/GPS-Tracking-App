@@ -1,24 +1,26 @@
 "use client"
 
 import { SettingsScreen } from "@/components/settings-screen"
-import { createClientComponentClient } from "@supabase/auth-helpers-nextjs"
+import { supabase } from "@/lib/supabase"
 import { useEffect, useState } from "react"
 import { type User } from "@supabase/supabase-js"
+import { useSupabaseSession } from "@/hooks/useSupabaseSession"
 
 export default function SettingsPage() {
+  const session = useSupabaseSession()
   const [user, setUser] = useState<User | null>(null)
   const [isPremium, setIsPremium] = useState(false)
 
   useEffect(() => {
-    const supabase = createClientComponentClient({
-      supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      supabaseKey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    })
+    // Wait until session is ready before doing anything
+    if (!session) return
 
+    
 
     const load = async () => {
       const { data } = await supabase.auth.getUser()
       if (!data.user) return
+
       const user = data.user
       setUser(user)
 
@@ -28,14 +30,13 @@ export default function SettingsPage() {
         .eq("id", user.id)
         .single()
 
-
       setIsPremium(profile?.is_premium ?? false)
     }
 
     load()
-  }, [])
+  }, [session]) // only run once session is available
 
-  if (!user) return <div>Loading...</div>
+  if (!session || !user) return <div>Loading settings...</div>
 
   return <SettingsScreen user={user} isPremium={isPremium} />
 }

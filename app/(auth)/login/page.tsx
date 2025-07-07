@@ -1,4 +1,7 @@
 'use client';
+import { useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import { supabase } from '@/lib/supabase';
 
 import { useState } from 'react';
 import { FcGoogle } from 'react-icons/fc';
@@ -10,6 +13,46 @@ import { MailIcon, LockIcon } from 'lucide-react';
 export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const router = useRouter();
+
+  useEffect(() => {
+    const checkSession = async () => {
+      const { data, error } = await supabase.auth.getSession();
+
+      if (data?.session) {
+        router.push("/location-history"); // or wherever
+      }
+    };
+
+    checkSession();
+  }, []);
+
+const handleLogin = async () => {
+  if (!email || !password) {
+    alert("Please enter both email and password.");
+    return;
+  }
+
+  const { data, error } = await supabase.auth.signInWithPassword({
+    email,
+    password,
+  });
+
+  if (error) {
+    console.error("❌ Login error:", error.message);
+    alert("Login failed: " + error.message);
+  } else {
+    console.log("✅ Login successful!", data);
+
+    // 🔍 Check the session manually after login
+    const sessionCheck = await supabase.auth.getSession();
+    console.log("🔥 Post-login session:", sessionCheck.data.session);
+
+    router.push("/location-history"); // or wherever your main app is
+  }
+};
+
+
 
   return (
     <div className="min-h-screen bg-[#3896ff] flex items-center justify-center px-4">
@@ -64,10 +107,12 @@ export default function LoginPage() {
 
           {/* Continue Button */}
           <Button
+            onClick={handleLogin}
             className="w-full bg-[#3896ff] hover:bg-[#2e7ee1] text-white font-medium mb-4"
           >
             Continue
           </Button>
+
 
           {/* Separator */}
           <div className="w-full flex items-center my-4">
