@@ -1,3 +1,5 @@
+'use client';
+
 import { LocationHistoryClient } from "@/components/LocationHistoryClient"
 import { useSupabaseSession } from "@/hooks/useSupabaseSession"
 
