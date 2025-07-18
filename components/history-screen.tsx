@@ -96,7 +96,7 @@ export function HistoryScreen() {
 
 
   useEffect(() => {
-  
+
 
 
     const setup = async () => {
@@ -121,8 +121,23 @@ export function HistoryScreen() {
           },
           (payload) => {
             console.log("🧠 SUBSCRIPTION FIRED", payload)
-            fetchAll(supabase, user.id, timeRange, setLocations)
+            const newLocation = payload.new as LocationEntry
+
+            // Only add if within selected timeRange
+            const now = new Date().getTime()
+            const rangeLimit = {
+              "24h": 24 * 60 * 60 * 1000,
+              "7d": 7 * 24 * 60 * 60 * 1000,
+              "30d": 30 * 24 * 60 * 60 * 1000,
+            }
+            const fromTime = now - rangeLimit[timeRange]
+            const entryTime = new Date(newLocation.created_at).getTime()
+
+            if (entryTime >= fromTime) {
+              setLocations((prev) => [newLocation, ...prev])
+            }
           }
+
         )
         .subscribe()
 
