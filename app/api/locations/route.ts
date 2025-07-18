@@ -11,7 +11,7 @@ export async function POST(req: Request) {
 
   // 🔍 Log request and env variables
   console.log("📥 Incoming data:", body)
-  console.log("🧪 ENV:", process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY)
+  
 
   const { latitude, longitude, accuracy, user_id, is_emergency, id, ...rest } = body
 
