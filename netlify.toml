@@ -1,8 +1,6 @@
-# netlify.toml
-
 [build]
   command = "npm run build"
-
+  functions = ""
 
 [dev]
   command = "next dev"
