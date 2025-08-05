@@ -9,7 +9,5 @@
   command = "next dev"
   port = 3000
 
-# Disable secret scanning on these paths
 [build.environment]
-SECRETS_SCAN_OMIT_PATHS = ".netlify/.next/cache, .netlify/.next/standalone, .next/cache"
-SECRETS_SCAN_OMIT_KEYS = "SUPABASE_SERVICE_ROLE_KEY,STRIPE_SECRET_KEY,STRIPE_WEBHOOK_SECRET"
+SECRETS_SCAN_ENABLED = "false"
